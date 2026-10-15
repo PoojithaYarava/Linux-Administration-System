@@ -1,41 +1,44 @@
-# Implementation phases
+# Implementation phases and remaining verification
 
-The initial GitHub repository did not include a phase plan or source beyond its license. This plan records the completed phases represented by the working application and gives the next work a clear boundary.
+The upstream repository originally contained only its license. This document records the phases completed in the application and identifies environmental verification that still requires a real Ubuntu deployment.
 
-## Delivered
+## Phase 1 — Foundation and authentication
 
-### Phase 1 — Application foundation
+- React/Vite interface and FastAPI API.
+- SQLite persistence, root environment configuration, health endpoint, password hashing, expiring hashed bearer sessions, logout, password rotation and role-aware access.
+- Account creation and login throttling.
 
-- Responsive React navigation, login screen, dashboard layout, charts, tables, and empty/loading/error states.
-- FastAPI application structure, SQLite persistence, environment configuration, and Vite `/api` proxy for local development.
+## Phase 2 — Continuous host monitoring
 
-### Phase 2 — Authentication and administration
+- Managed background collector with graceful shutdown, collector status, error state, and interval configuration.
+- Actual CPU, memory, disk capacity and I/O, network totals and rates, interface state, load average, process snapshots and host data.
+- Historical queries, indexed storage, stale-data indication and retention cleanup.
 
-- Password hashing with PBKDF2, expiring bearer sessions persisted as token hashes, sign-out, session revocation after password changes, and administrator-only operations.
-- Allowlisted systemd actions, recorded results, and an audit trail.
+## Phase 3 — Explainable intelligence
 
-### Phase 3 — Host observability
+- Multivariate Isolation Forest where scikit-learn is installed, with robust MAD fallback; persistent findings include score, method, baseline and explanation.
+- CPU, memory and disk trend forecasts require at least 12 observations and use chronological walk-forward MAE compared with a last-value baseline.
+- Evidence-ranked root-cause hypotheses include alternatives, diagnostics and confidence definitions that distinguish evidence strength from probability or causal proof.
+- Systemd relationship/ordering graph, service impact and weighted risk report, and evidence-linked recommendations.
 
-- CPU, memory, disk, network, uptime, host metadata, process inventory, systemd service inventory, and journal access.
-- Search and severity filters for log entries; service search and controlled restart actions.
+## Phase 4 — Controlled operations and incidents
 
-### Phase 4 — Intelligence and response
+- Alerts create linked incidents; incident records support assignment, investigation, resolution and notes.
+- Service operations are persistent requests with expiry, exact-operation fingerprint, risk review, allowlist, protected-service policy, state revalidation, administrator approval and audit.
+- High-risk requests require approval by someone other than their requester. No automatic remediation is performed.
 
-- Threshold alert generation with open-alert deduplication.
-- Historical anomaly detection with Isolation Forest when scikit-learn is installed and a documented statistical fallback otherwise.
-- Alert acknowledgement, audit recording, and dashboard refresh/recovery behavior.
+## Phase 5 — Integrated interface and release material
 
-### Phase 5 — Local setup and release readiness
+- Views for dashboard, processes, services, logs, alerts/anomalies, dependencies, forecasts/models, root-cause hypotheses, recommendations, incidents, approvals/configuration, accounts and audit history.
+- API guide, requirements traceability, local setup and Ubuntu deployment guidance.
+- Backend tests and production frontend build pass in this Windows workspace.
 
-- Reproducible pinned frontend dependencies, environment example, ignored local data/secrets, API documentation, implementation plan, and setup/troubleshooting guide.
+## Remaining environment-dependent work
 
-## Follow-up work
+- Validate systemd inventory, dependency edge direction, journal permissions, service-operation sudo policy and state verification on the target Ubuntu release.
+- Capture real Ubuntu screenshots and run integration tests against disposable systemd units.
+- Select and deploy PostgreSQL/Alembic if required; this implementation intentionally retains the original SQLite store.
+- Run workload-specific model evaluation with representative real history and set operational thresholds/criticality policy.
+- Configure production HTTPS, reverse proxy, backup/restore, monitoring and least-privilege service account.
 
-- Add automated frontend and backend checks to CI and publish a reviewed release workflow.
-- Add role management, per-user accounts, and stronger production authentication (for example, rate limiting and an external identity provider).
-- Add a background telemetry collector so metric history continues when no dashboard is open.
-- Add Linux integration tests using disposable systemd units and access-controlled journal fixtures.
-- Add model evaluation, feature-window controls, and operator feedback for anomaly quality.
-- Add deployment packaging for a native Ubuntu host and a reverse proxy with TLS.
-
-These follow-ups require deployment and operational choices that are not present in the initial project brief; the local application remains useful without them.
+No production host, workload dataset, PostgreSQL instance, or real service action was available in the development environment, so those items are not marked verified.

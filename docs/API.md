@@ -1,43 +1,60 @@
 # API reference
 
-Base path: `/api`. Except for health and login, routes require `Authorization: Bearer <token>`. Sessions expire after `SESSION_TTL_HOURS`; tokens are stored as SHA-256 hashes and survive API process restarts. Changing the password invalidates every session for that account.
+The API is rooted at `/api`. `GET /api/health` is public for liveness checks; all other routes require `Authorization: Bearer <token>` unless marked Administrator. OpenAPI is available at `/docs` while the backend runs.
 
-## Health and authentication
+## Authentication and accounts
 
-| Method | Route | Access | Description |
-| --- | --- | --- | --- |
-| `GET` | `/health` | Public | API status, host platform, and Linux integration availability |
-| `POST` | `/auth/login` | Public | Accepts `username` and `password`; returns a bearer token and user |
-| `POST` | `/auth/logout` | Signed in | Invalidates the current session |
-| `POST` | `/auth/change-password` | Administrator | Accepts `current_password` and a `new_password` of at least 12 characters; revokes sessions |
-
-## Host data
-
-| Method | Route | Description |
+| Method | Route | Access |
 | --- | --- | --- |
-| `GET` | `/system/info` | Hostname, OS, kernel, architecture, uptime, CPU count, and Python version |
-| `GET` | `/system/metrics?limit=60` | Collects a snapshot and returns it with up to 500 history points |
-| `GET` | `/system/health` | Collects a snapshot and returns a healthy/degraded status |
-| `GET` | `/processes` | Current process inventory |
-| `GET` | `/processes/{pid}` | Detail for one process |
-| `GET` | `/services` | systemd service inventory |
-| `GET` | `/services/{name}` | Properties for an allowlisted service |
-| `GET` | `/logs?limit=100&severity=warning&service=ssh&search=...` | Recent journal entries with optional filters |
+| POST | `/auth/login` | Public; returns bearer token and user |
+| POST | `/auth/logout` | Signed in |
+| POST | `/auth/change-password` | Administrator |
+| GET, POST | `/users` | Administrator; create validates 12-character minimum password |
 
-## Alerts and administration
+## Telemetry and diagnostics
 
-| Method | Route | Access | Description |
-| --- | --- | --- | --- |
-| `GET` | `/alerts` | Signed in | Recent threshold alerts |
-| `PATCH` | `/alerts/{id}/acknowledge` | Administrator | Acknowledge an open alert and write an audit event |
-| `GET` | `/anomalies` | Signed in | Historical metrics with anomaly flags and explanations |
-| `POST` | `/services/{name}/{start\|stop\|restart}` | Administrator | Operate an allowlisted systemd service; records an action and audit event |
-| `POST` | `/actions` | Administrator | Same controlled action using `{ "action_type": "restart", "target": "ssh" }` |
-| `GET` | `/actions` | Administrator | Recent administrative actions |
-| `GET` | `/audit` | Administrator | Recent audit events and usernames |
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/health` | Collector state, platform and Linux integration availability |
+| GET | `/system/info` | Host and OS details |
+| GET | `/system/metrics?limit=60` | Latest stored observation, history, staleness |
+| GET | `/system/metrics/history?start=<ISO>&end=<ISO>&limit=500` | Time-filtered metric history |
+| GET | `/system/disk` | Partition capacities and device I/O counters |
+| GET | `/system/health` | Latest host health assessment |
+| GET | `/processes` and `/processes/{pid}` | Process snapshots and detail; credential-like command args are redacted |
+| GET | `/services` and `/services/{name}` | systemd inventory and allowlisted unit detail |
+| GET | `/dependencies?service=<name>&depth=2` | Observed systemd dependency and ordering graph |
+| GET | `/logs?limit=100&severity=<level>&service=<name>&search=<text>` | journal entries, filtered and persisted by cursor |
+| GET | `/anomalies?status_filter=open` | Stored anomaly evidence |
+| PATCH | `/anomalies/{id}?state=acknowledged\|resolved` | Administrator lifecycle update |
+| GET | `/forecasts?horizon_hours=1` | Current resource trend estimates and data sufficiency |
+| GET | `/predictions?metric=cpu_usage&limit=100` | Persisted forecast history |
+| GET | `/models/status` | Model metadata, evaluation runs and observations |
+| GET | `/root-causes?limit=50` | Evidence-ranked hypotheses, alternatives and diagnostics |
+| GET | `/impact/{service}?operation=restart` | Explainable risk/impact report |
+| GET | `/risk/{service}?operation=restart` | Persisted explainable 0–100 risk assessment and policy outcome |
+| GET, PATCH | `/recommendations` and `/recommendations/{id}` | Review guidance and mark active/dismissed/resolved |
 
-FastAPI's generated interactive reference is available at `/docs`; the OpenAPI document is at `/openapi.json`.
+## Alerts, incidents and safe operations
 
-## Status and errors
+| Method | Route | Access / behavior |
+| --- | --- | --- |
+| GET | `/alerts` | Signed in |
+| PATCH | `/alerts/{id}/acknowledge` or `/alerts/{id}/resolve` | Administrator; resolve also updates linked active incident |
+| GET | `/incidents?status_filter=open` | Signed in |
+| PATCH | `/incidents/{id}` | Administrator; assign, investigate, resolve or close with notes |
+| POST | `/actions` | Signed in; creates an expiring request, never executes immediately |
+| GET | `/actions`, `/actions/{id}` | Admin sees all; operator sees own requests |
+| POST | `/actions/{id}/decision` | Administrator approval/rejection; high-risk request requires a reviewer distinct from requester |
+| POST | `/actions/{id}/execute` | Administrator; revalidates expiry, fingerprint, allowlist and pre-approved service state |
+| POST | `/actions/{id}/cancel` | Requester or administrator |
+| GET, PUT | `/config` | Administrator; update CPU, memory and disk alert thresholds |
+| GET | `/audit` | Administrator |
 
-Successful routes return JSON. Authentication failures return `401`, role failures return `403`, invalid operations return `400`, missing resources return `404`, and unavailable host integrations may return `503`. Error payloads use FastAPI's `detail` field.
+Supported operation requests are fixed start/stop/restart actions for `ALLOWED_SERVICES`. Protected service stops are prohibited by policy. The backend does not accept arbitrary shell commands. A request can execute only on a Linux systemd host with the relevant permissions; otherwise it records the unavailable integration result.
+
+## Data and deployment notes
+
+SQLite is the delivered storage backend. `DATABASE_PATH` selects its file, and the service account must be able to write it. The collector runs in a managed background thread, stores timestamps in UTC, and prunes metric/process/service/log/prediction history according to `RETENTION_DAYS`. Back up the database file using a SQLite-consistent backup method.
+
+For a browser client hosted on another origin, set `CORS_ORIGINS` to the exact trusted origin list. Protect the API with HTTPS and a least-privilege OS account. Service allowlist and protected-service settings are deployment policy, not per-request input.

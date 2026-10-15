@@ -6,12 +6,15 @@ A local web console for Linux host telemetry and controlled administration. The 
 
 - Live CPU, memory, disk, network, uptime, and host details, with a rolling telemetry chart.
 - Process inventory with CPU, memory, user, command, and state details.
-- systemd service inventory and allowlisted start, stop, and restart operations.
+- systemd service inventory and dependency graph; allowlisted operations are submitted as expiring approval requests and revalidated before execution.
 - journal search and severity filtering.
-- configurable threshold alerts and historical multivariate anomaly detection, with a transparent CPU baseline fallback when scikit-learn is not installed.
+- background telemetry collection with history and retention, multivariate anomaly detection, resource threshold forecasts, and evidence-ranked root-cause hypotheses.
+- explainable risk and impact reports, reviewed recommendations, incident tracking, human approvals, role-based accounts, and audit history.
 - persistent, expiring bearer sessions; password changes revoke all sessions.
 - alert acknowledgement and an audit trail for administrative actions.
 - Responsive React interface and a FastAPI health endpoint.
+
+See the [operator manual](docs/user_manual.md) for workflows and the [final demo script](docs/final_demo_script.md) for a guided presentation. The [project report](docs/final_project_report.md) records methods, verification and limitations.
 
 ## Quick start
 
@@ -66,13 +69,20 @@ Run the frontend in another terminal with `cd frontend && npm ci && npm run dev`
 | `CPU_ALERT_THRESHOLD` | `85` | CPU alert threshold percent |
 | `MEMORY_ALERT_THRESHOLD` | `85` | Memory alert threshold percent |
 | `DISK_ALERT_THRESHOLD` | `90` | Disk alert threshold percent |
+| `COLLECTOR_INTERVAL_SECONDS` | `15` | Background sampling interval (minimum 5 seconds) |
+| `RETENTION_DAYS` | `30` | History retention period |
+| `COLLECTOR_ENABLED` | `true` | Enable background host collection |
+| `PROTECTED_SERVICES` | `ssh,systemd-journald` | Services whose stop operation is prohibited |
+| `SERVICE_CRITICALITY` | `ssh:critical,cron:medium,systemd-journald:high` | Comma-separated service risk classifications |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed browser origins |
 
 The API reads the root `.env` file on startup and respects environment variables already supplied by the process. The administrator account is created only on an empty database; changing the environment password later does not reset an existing account. Use Administration → Change admin password to rotate it.
 
 ## Linux host integration
 
-Run the backend on the Ubuntu/Linux host you want to monitor. systemd inventory, journal access, and service actions require `systemctl`/`journalctl` and the operating-system permissions granted to the backend process. The service controls accept only names in `ALLOWED_SERVICES`; add only services administrators are allowed to operate. On Windows or a container without systemd, telemetry still works but Linux service and journal features report that the integration is unavailable.
+Run the backend on the Ubuntu/Linux host you want to monitor. systemd inventory, unit dependencies, journal access, and service actions require `systemctl`/`journalctl` and the operating-system permissions granted to the backend process. Use a dedicated least-privilege account and grant only the narrowly scoped systemd commands required by the configured allowlist. On Windows or a container without systemd, host telemetry still works but Linux service, dependency and journal features report that the integration is unavailable.
+
+The existing SQLite storage choice is preserved. PostgreSQL and Alembic are not included in this delivery. Set `DATABASE_PATH` to persistent storage and arrange regular, consistent database backups before collecting production history. See the [delivery checklist](docs/REQUIREMENTS_CHECKLIST.md) for implementation evidence and host-dependent limitations.
 
 ## Production build
 
@@ -88,7 +98,7 @@ The output is written to `frontend/dist`. For deployment, serve those files from
 
 ## API and project notes
 
-See [API reference](docs/API.md) for routes and [implementation phases](docs/IMPLEMENTATION_PLAN.md) for the delivered scope and future work. FastAPI exposes interactive OpenAPI documentation at `/docs` while the backend is running. The unauthenticated health probe is `GET /api/health`.
+See the [API reference](docs/API.md), [architecture](docs/architecture.md), [system design and diagrams](docs/system_design.md), [database schema](docs/database_schema.md), [ML methodology](docs/ml_methodology.md), [security model](docs/security.md), and [testing/evaluation](docs/testing_and_evaluation.md). The [Ubuntu deployment guide](docs/deployment.md), [implementation phases](docs/IMPLEMENTATION_PLAN.md), and [master prompt checklist](docs/REQUIREMENTS_CHECKLIST.md) state the implemented scope and remaining host-dependent work. FastAPI exposes interactive OpenAPI documentation at `/docs` while the backend is running. The unauthenticated health probe is `GET /api/health`.
 
 ## Troubleshooting
 

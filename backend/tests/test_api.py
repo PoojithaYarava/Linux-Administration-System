@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 os.environ["DATABASE_PATH"] = str(Path(__file__).parent / "test.db")
@@ -25,7 +26,95 @@ def test_login_and_system_metrics():
 def test_unauthorized_and_allowlist():
     assert client.get("/api/processes").status_code == 401
     response = client.post("/api/services/not-allowed/restart", headers={"Authorization": f"Bearer {token()}"})
-    assert response.status_code in {400, 403}
+    assert response.status_code in {404, 403}
+
+
+def test_service_operations_require_a_persisted_approval_request():
+    auth = {"Authorization": f"Bearer {token()}"}
+    response = client.post("/api/actions", headers=auth, json={"action_type": "restart", "target": "ssh", "reason": "Investigate the monitored SSH service after an alert."})
+    assert response.status_code == 200
+    action = response.json()
+    assert action["state"] in {"PENDING_APPROVAL", "REJECTED"}
+    assert client.post("/api/services/ssh/restart", headers=auth).status_code == 404
+
+
+def test_admin_threshold_config_is_validated_and_audited():
+    auth = {"Authorization": f"Bearer {token()}"}
+    before = client.get("/api/config", headers=auth)
+    assert before.status_code == 200
+    saved = client.put("/api/config", headers=auth, json={"cpu_alert_threshold": 76, "memory_alert_threshold": 82, "disk_alert_threshold": 91})
+    assert saved.status_code == 200
+    assert saved.json()["cpu_alert_threshold"] == 76
+    assert client.put("/api/config", headers=auth, json={"cpu_alert_threshold": 0, "memory_alert_threshold": 82, "disk_alert_threshold": 91}).status_code == 422
+    client.put("/api/config", headers=auth, json=before.json() | {"cpu_alert_threshold": 85, "memory_alert_threshold": 85, "disk_alert_threshold": 90})
+
+
+def test_impact_is_persisted_and_protected_service_stop_is_prohibited():
+    auth = {"Authorization": f"Bearer {token()}"}
+    result = client.get("/api/impact/ssh?operation=stop", headers=auth)
+    assert result.status_code == 200
+    assert result.json()["risk"]["policy"]["decision"] == "prohibited"
+    assert result.json()["impact"]["classification"] in {"low", "moderate", "high", "critical"}
+    assert client.get("/api/risk/ssh?operation=stop", headers=auth).json()["policy"]["decision"] == "prohibited"
+
+
+def test_root_cause_endpoint_defines_uncertainty_and_diagnostics():
+    auth = {"Authorization": f"Bearer {token()}"}
+    response = client.get("/api/root-causes", headers=auth)
+    assert response.status_code == 200
+    assert response.json()
+    finding = response.json()[0]
+    assert finding["confidence_definition"]
+    assert isinstance(finding["evidence"], list)
+    assert isinstance(finding["diagnostics"], list)
+
+
+def test_expired_approval_is_rejected_and_persisted():
+    from app.main import db
+
+    auth = {"Authorization": f"Bearer {token()}"}
+    action = client.post("/api/actions", headers=auth, json={"action_type": "restart", "target": "ssh", "reason": "Review a test approval expiration path."}).json()
+    with db() as connection:
+        connection.execute("UPDATE actions SET expires_at='2000-01-01T00:00:00+00:00' WHERE id=?", (action["id"],))
+    decision = client.post(f"/api/actions/{action['id']}/decision", headers=auth, json={"decision": "approve", "reason": "Attempt expired request test."})
+    assert decision.status_code == 409
+    assert client.get(f"/api/actions/{action['id']}", headers=auth).json()["state"] == "EXPIRED"
+
+
+def test_approved_action_is_bound_to_exact_target_and_execution_failure_is_recorded():
+    from app.main import db
+
+    auth = {"Authorization": f"Bearer {token()}"}
+    action = client.post("/api/actions", headers=auth, json={"action_type": "restart", "target": "ssh", "reason": "Exercise exact target operation binding."}).json()
+    approved = client.post(f"/api/actions/{action['id']}/decision", headers=auth, json={"decision": "approve", "reason": "Approve a controlled test request."})
+    assert approved.status_code == 200
+    with db() as connection:
+        connection.execute("UPDATE actions SET target='cron' WHERE id=?", (action["id"],))
+    assert client.post(f"/api/actions/{action['id']}/execute", headers=auth).status_code == 409
+
+    second = client.post("/api/actions", headers=auth, json={"action_type": "restart", "target": "ssh", "reason": "Exercise systemd unavailable handling."}).json()
+    client.post(f"/api/actions/{second['id']}/decision", headers=auth, json={"decision": "approve", "reason": "Approve unavailable-host test."})
+    executed = client.post(f"/api/actions/{second['id']}/execute", headers=auth)
+    assert executed.status_code == 200
+    assert executed.json()["state"] == "FAILED"
+    assert "systemd unavailable" in executed.json()["result"]
+
+
+def test_incident_lifecycle_and_detail_links_related_alert():
+    from app.main import record_alert
+
+    auth = {"Authorization": f"Bearer {token()}"}
+    source = "test-service-" + str(time.time_ns())
+    record_alert("service_failure", "high", "Test service reports failed state.", source)
+    listed = client.get("/api/incidents?status_filter=open", headers=auth)
+    incident = next(row for row in listed.json() if row["component"] == source)
+    detail = client.get(f"/api/incidents/{incident['id']}", headers=auth)
+    assert detail.status_code == 200
+    assert detail.json()["alert"]["alert_type"] == "service_failure"
+    changed = client.patch(f"/api/incidents/{incident['id']}", headers=auth, json={"status": "investigating", "assigned_to": 1})
+    assert changed.json()["status"] == "investigating"
+    resolved = client.patch(f"/api/incidents/{incident['id']}", headers=auth, json={"status": "resolved", "resolution_notes": "Confirmed recovery and reviewed logs."})
+    assert resolved.json()["resolved_at"]
 
 
 def test_admin_can_change_password_and_old_sessions_are_revoked():
