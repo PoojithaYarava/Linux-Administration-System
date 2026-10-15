@@ -16,7 +16,7 @@ This matrix distinguishes implemented software behavior from host-dependent evid
 | Incidents | Threshold/anomaly alert correlation, status, assignee, resolution notes, linked action records | API/UI paths; broader alert correlation policy remains deploy-specific |
 | Security | PBKDF2 passwords, hashed bearer tokens, expiry/revocation, login throttling, role checks, allowlisted service actions and command redaction | API tests; configure strong initial password, HTTPS and least-privilege Linux service account |
 | Database | Existing SQLite preserved; idempotent schema bootstrap and additive compatibility columns | No PostgreSQL backend or versioned Alembic migrations in this delivery |
-| Frontend | Dashboard, process/service/log views, dependencies, forecasts/models, RCA, recommendations, incidents, approvals/config, user management and audit | `npm.cmd run build` completed successfully; local API and browser preview smoke-check in progress |
+| Frontend | Dashboard, process/service/log views, dependencies, forecasts/models, RCA, recommendations, incidents, approvals/config, user management and audit, with selectable telemetry history range | `npm.cmd run build` completed successfully; local API, Vite page and API proxy returned HTTP 200 |
 | Ubuntu deployment | Environment settings, run guide, privilege guidance, architecture and backup notes | Ubuntu/systemd execution and screenshots require a real Ubuntu host, not present in this workspace |
 
 No real Ubuntu workflow, production dataset, PostgreSQL deployment, or model quality claim is reported without the infrastructure and observations needed to verify it.
