@@ -63,7 +63,7 @@ Run the frontend in another terminal with `cd frontend && npm ci && npm run dev`
 | --- | --- | --- |
 | `DATABASE_PATH` | `backend/data/platform.db` | SQLite database location |
 | `ADMIN_USERNAME` | `admin` | Initial administrator account, created when the database is empty |
-| `ADMIN_PASSWORD` | `change-me-now` if unset | Initial password; configure a long private value before first launch |
+| `ADMIN_PASSWORD` | Required when initializing an empty database | Initial administrator password; at least 12 characters |
 | `SESSION_TTL_HOURS` | `12` | Login session lifetime |
 | `ALLOWED_SERVICES` | `ssh,cron,systemd-journald` | Services the admin API may operate |
 | `CPU_ALERT_THRESHOLD` | `85` | CPU alert threshold percent |
@@ -98,7 +98,7 @@ The output is written to `frontend/dist`. For deployment, serve those files from
 
 ## API and project notes
 
-See the [API reference](docs/API.md), [architecture](docs/architecture.md), [system design and diagrams](docs/system_design.md), [database schema](docs/database_schema.md), [ML methodology](docs/ml_methodology.md), [security model](docs/security.md), and [testing/evaluation](docs/testing_and_evaluation.md). The [Ubuntu deployment guide](docs/deployment.md), [implementation phases](docs/IMPLEMENTATION_PLAN.md), and [master prompt checklist](docs/REQUIREMENTS_CHECKLIST.md) state the implemented scope and remaining host-dependent work. FastAPI exposes interactive OpenAPI documentation at `/docs` while the backend is running. The unauthenticated health probe is `GET /api/health`.
+See the [API reference](docs/API.md), [architecture](docs/architecture.md), [system design and diagrams](docs/system_design.md), [database schema](docs/database_schema.md), [ML methodology](docs/ml_methodology.md), [live-data evaluation notebook](ml/evaluation.ipynb), [security model](docs/security.md), and [testing/evaluation](docs/testing_and_evaluation.md). The [Ubuntu deployment guide](docs/deployment.md), [implementation phases](docs/IMPLEMENTATION_PLAN.md), and [master prompt checklist](docs/REQUIREMENTS_CHECKLIST.md) state the implemented scope and remaining host-dependent work. FastAPI exposes interactive OpenAPI documentation at `/docs` while the backend is running. The unauthenticated health probe is `GET /api/health`.
 
 ## Troubleshooting
 

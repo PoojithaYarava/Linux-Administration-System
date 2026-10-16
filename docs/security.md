@@ -13,7 +13,7 @@
 
 ## Required deployment practices
 
-1. Set a long unique `ADMIN_PASSWORD` before the first database initialization and rotate it after initial setup. The local fallback password is development-only.
+1. Set a long unique `ADMIN_PASSWORD` before the first database initialization. A missing or shorter than 12-character password prevents initial administrator creation; there is no shared default credential. Rotate it after initial setup.
 2. Set `CORS_ORIGINS` to exact trusted origins. Serve the production client and API through HTTPS; do not expose Vite's development server.
 3. Run the backend as a dedicated unprivileged OS account. Do not run the web process as root. Grant only narrowly scoped systemd operations for named allowlisted services and needed journal visibility.
 4. Protect `.env`, database files and backups with filesystem permissions and encryption appropriate to the host. Do not commit `.env`.

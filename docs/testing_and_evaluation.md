@@ -4,13 +4,13 @@
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend API/unit suite | `cd backend && py -3 -m pytest tests -q` | 12 passed; 5 framework deprecation warnings |
+| Backend API/unit suite | `cd backend && py -3 -m pytest tests -q` | 14 passed; 5 framework deprecation warnings |
 | Frontend production bundle | `cd frontend && npm.cmd run build` | Successful Vite 8.3 production build; React bundle and lazy chart chunks emitted |
 | Patch whitespace | `git diff --check` | Clean at the time of the repository audit |
 | Local health smoke check | `GET http://127.0.0.1:8000/api/health` | HTTP 200; collector was running and reported Windows/Linux integration unavailable |
 | Browser origin smoke check | `GET http://127.0.0.1:5173/api/health` | HTTP 200 through the Vite proxy |
 
-The twelve automated tests cover login/metrics, authentication failure, absence of the old direct service endpoint, password rotation/session revocation, action request persistence, config validation, impact/risk persistence and protected stop policy, incident detail/lifecycle, root-cause uncertainty fields, expiry handling, exact target binding and unavailable-systemd execution failure, chronological forecasting, and risk formula behavior. These tests use the local SQLite test database and do not demonstrate privileged Linux execution.
+The fourteen automated tests cover login/metrics, missing/weak initial administrator password rejection, filtered history downsampling across a requested time window, authentication failure, absence of the old direct service endpoint, password rotation/session revocation, action request persistence, config validation, impact/risk persistence and protected stop policy, incident detail/lifecycle, root-cause uncertainty fields, expiry handling, exact target binding and unavailable-systemd execution failure, chronological forecasting, and risk formula behavior. These tests use an isolated temporary SQLite test database and do not demonstrate privileged Linux execution.
 
 ## Actual model measurements
 

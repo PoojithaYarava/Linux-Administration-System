@@ -18,7 +18,7 @@ The API is rooted at `/api`. `GET /api/health` is public for liveness checks; al
 | GET | `/health` | Collector state, platform and Linux integration availability |
 | GET | `/system/info` | Host and OS details |
 | GET | `/system/metrics?limit=60` | Latest stored observation, history, staleness |
-| GET | `/system/metrics/history?start=<ISO>&end=<ISO>&limit=500` | Time-filtered metric history |
+| GET | `/system/metrics/history?start=<ISO>&end=<ISO>&limit=500` | Time-filtered metric history; when a time filter matches more rows than `limit`, evenly spaced observations (including both range endpoints) are returned |
 | GET | `/system/disk` | Partition capacities and device I/O counters |
 | GET | `/system/health` | Latest host health assessment |
 | GET | `/processes` and `/processes/{pid}` | Process snapshots and detail; credential-like command args are redacted |

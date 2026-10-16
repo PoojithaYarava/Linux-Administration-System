@@ -1,8 +1,12 @@
 import os
+import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-os.environ["DATABASE_PATH"] = str(Path(__file__).parent / "test.db")
+_test_db_dir = tempfile.TemporaryDirectory(prefix="lap-test-db-")
+os.environ["DATABASE_PATH"] = str(Path(_test_db_dir.name) / "test.db")
+os.environ["ADMIN_PASSWORD"] = "test-private-password-42"
 from fastapi.testclient import TestClient
 from app.main import app, init_db
 
@@ -11,7 +15,7 @@ client = TestClient(app)
 
 
 def token():
-    response = client.post("/api/auth/login", json={"username": "admin", "password": "change-me-now"})
+    response = client.post("/api/auth/login", json={"username": "admin", "password": "test-private-password-42"})
     assert response.status_code == 200
     return response.json()["token"]
 
@@ -21,6 +25,58 @@ def test_login_and_system_metrics():
     response = client.get("/api/system/metrics", headers=auth)
     assert response.status_code == 200
     assert {"cpu_usage", "memory_usage", "disk_usage"}.issubset(response.json()["latest"])
+
+
+def test_fresh_database_rejects_missing_or_weak_admin_password(tmp_path, monkeypatch):
+    import pytest
+    from app import main as main_module
+
+    original_path = main_module.DB_PATH
+    try:
+        for password in (None, "short"):
+            main_module.DB_PATH = tmp_path / ("fresh-" + (password or "missing") + ".db")
+            if password is None:
+                monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+            else:
+                monkeypatch.setenv("ADMIN_PASSWORD", password)
+            with pytest.raises(RuntimeError, match="at least 12 characters"):
+                main_module.init_db()
+    finally:
+        main_module.DB_PATH = original_path
+        monkeypatch.setenv("ADMIN_PASSWORD", "test-private-password-42")
+
+
+def test_filtered_metric_history_downsamples_across_the_requested_range():
+    from app.main import db
+
+    start = datetime.now(timezone.utc) - timedelta(days=60)
+    observations = [
+        ((start + timedelta(seconds=index)).isoformat(), 20.0, 30.0, 40.0, 100, 200, 0.5)
+        for index in range(5105)
+    ]
+    with db() as connection:
+        connection.executemany(
+            "INSERT INTO system_metrics(timestamp,cpu_usage,memory_usage,disk_usage,network_received,network_sent,load_average) VALUES(?,?,?,?,?,?,?)",
+            observations,
+        )
+
+    auth = {"Authorization": f"Bearer {token()}"}
+    response = client.get(
+        "/api/system/metrics/history",
+        headers=auth,
+        params={"start": observations[0][0], "end": observations[-1][0], "limit": 5000},
+    )
+    history = response.json()
+    assert response.status_code == 200
+    assert 1 < len(history) <= 5000
+    assert history[0]["timestamp"] == observations[0][0]
+    assert history[-1]["timestamp"] == observations[-1][0]
+    assert history[0]["timestamp"] < history[len(history) // 2]["timestamp"] < history[-1]["timestamp"]
+    newest = client.get("/api/system/metrics/history", headers=auth, params={"start": observations[0][0], "end": observations[-1][0], "limit": 1}).json()
+    assert len(newest) == 1 and newest[0]["timestamp"] == observations[-1][0]
+
+    with db() as connection:
+        connection.execute("DELETE FROM system_metrics WHERE timestamp>=? AND timestamp<=?", (observations[0][0], observations[-1][0]))
 
 
 def test_unauthorized_and_allowlist():
@@ -118,7 +174,7 @@ def test_incident_lifecycle_and_detail_links_related_alert():
 
 
 def test_admin_can_change_password_and_old_sessions_are_revoked():
-    old_password = "change-me-now"
+    old_password = "test-private-password-42"
     new_password = "a-new-private-password-42"
     old_token = token()
     headers = {"Authorization": f"Bearer {old_token}"}

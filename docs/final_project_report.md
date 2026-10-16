@@ -21,7 +21,7 @@ Detailed assumptions and limitations are in [ML methodology](ml_methodology.md) 
 
 ## Verification results
 
-At the current verification checkpoint, the backend suite reported 12 passed with five framework deprecation warnings, and the pinned frontend dependencies produced a successful Vite production build. API/preview health probes returned HTTP 200, and the API reported a running collector on Windows. These checks establish local software behavior only.
+At the current verification checkpoint, the backend suite reported 14 passed with five framework deprecation warnings, and the pinned frontend dependencies produced a successful Vite production build. API/preview health probes returned HTTP 200, and the API reported a running collector on Windows. These checks establish local software behavior only.
 
 No Ubuntu host, systemd test service, representative Linux dataset, PostgreSQL instance, or labeled failure dataset was available. Therefore systemd dependency accuracy, journal visibility, privileged operation execution, real Ubuntu failure recovery and workload-specific ML quality remain unverified. No model accuracy claim or synthetic result is included.
 
@@ -35,4 +35,4 @@ Follow [Ubuntu deployment](deployment.md), [user manual](user_manual.md), and [t
 
 ## Remaining work
 
-The current deliverable preserves SQLite rather than PostgreSQL/SQLAlchemy/Alembic. It has an inline idempotent bootstrap, not an Alembic migration history. It does not include Docker Compose, notebooks, a trained serialized model artifact, per-system tenant model, or captured Ubuntu screenshots. Those are not claimed complete; see the traceability checklist for the exact evidence boundary.
+The current deliverable preserves SQLite rather than PostgreSQL/SQLAlchemy/Alembic. It has an inline idempotent bootstrap, not an Alembic migration history. It includes an authenticated live-data evaluation notebook, but no trained serialized model artifact or per-system tenant model. Docker Compose is not included. Ubuntu screenshots and systemd workflow evidence require access to an Ubuntu host; see the traceability checklist for the exact verification boundary.

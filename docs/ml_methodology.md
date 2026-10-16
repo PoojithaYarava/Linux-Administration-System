@@ -23,3 +23,5 @@ Rule-based hypotheses use contemporaneous host pressure, high-resource process s
 ## Reproducibility and evaluation limits
 
 The fallback paths and linear trend are deterministic for fixed data. Isolation Forest uses a fixed seed. Walk-forward metrics are computed from actual chronological observations; no synthetic accuracy scores are included. No representative Ubuntu workload, labeled failure corpus or production history is available in this workspace, so model quality at a target deployment has not been established. The current `evaluation_runs` table stores actual walk-forward MAE and baseline comparisons after sufficient observations; it does not store classification precision/recall because no labeled classification task is defined.
+
+The authenticated [`ml/evaluation.ipynb`](../ml/evaluation.ipynb) notebook fetches stored observations from the running API and calls the same production inference modules. Run it on the target host after collecting history; its outputs are not committed so they cannot be mistaken for benchmark results.

@@ -153,7 +153,9 @@ def init_db() -> None:
         """)
         if connection.execute("SELECT 1 FROM users LIMIT 1").fetchone() is None:
             username = os.getenv("ADMIN_USERNAME", "admin")
-            password = os.getenv("ADMIN_PASSWORD", "change-me-now")
+            password = os.getenv("ADMIN_PASSWORD", "")
+            if len(password) < 12:
+                raise RuntimeError("Set ADMIN_PASSWORD to a private password of at least 12 characters before the first database initialization.")
             connection.execute("INSERT INTO users(username,password_hash,role,created_at) VALUES (?,?,?,?)", (username, hash_password(password), "administrator", now()))
 
 
@@ -683,8 +685,26 @@ def metric_history(start: str | None = None, end: str | None = None, limit: int 
             values.append(value)
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
     with db() as connection:
-        rows = connection.execute(f"SELECT * FROM system_metrics{where} ORDER BY timestamp DESC LIMIT ?", (*values, limit)).fetchall()
-    return list(reversed([dict(row) for row in rows]))
+        if start or end:
+            count = connection.execute(f"SELECT COUNT(*) FROM system_metrics{where}", values).fetchone()[0]
+            if count > limit and limit > 1:
+                step = max(1, math.ceil((count - 1) / (limit - 1)))
+                rows = connection.execute(
+                    f"SELECT * FROM system_metrics WHERE id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY timestamp ASC,id ASC) AS seq_no, COUNT(*) OVER () AS total_rows FROM system_metrics{where}) WHERE seq_no=1 OR seq_no=total_rows OR (seq_no-1) % ?=0) ORDER BY timestamp ASC,id ASC",
+                    (*values, step),
+                ).fetchall()
+            elif count > limit:
+                rows = connection.execute(f"SELECT * FROM system_metrics{where} ORDER BY timestamp DESC,id DESC LIMIT 1", values).fetchall()
+            else:
+                rows = connection.execute(f"SELECT * FROM system_metrics{where} ORDER BY timestamp ASC,id ASC LIMIT ?", (*values, limit)).fetchall()
+        else:
+            rows = list(reversed(connection.execute(f"SELECT * FROM system_metrics{where} ORDER BY timestamp DESC,id DESC LIMIT ?", (*values, limit)).fetchall()))
+    history = [dict(row) for row in rows]
+    for row in history:
+        with suppress(ValueError, TypeError, json.JSONDecodeError):
+            row["interface_stats"] = json.loads(row.get("interface_stats") or "{}")
+            row["available_metrics"] = json.loads(row.get("availability_json") or "{}")
+    return history
 
 
 @app.get("/api/system/disk")
