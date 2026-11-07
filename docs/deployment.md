@@ -1,41 +1,53 @@
 # Ubuntu deployment
 
-The backend must run on the Linux host whose metrics and systemd units it will inspect. The frontend can be served separately. The project has been developed and API-tested on Windows; validate the commands and permission policy on the target Ubuntu release before production use.
+The API must run natively on the Ubuntu host it monitors. Docker Compose runs PostgreSQL locally; keeping the API outside a container lets it use host psutil, systemd and journal interfaces without mounting privileged host sockets into a container. The commands below are documented for Ubuntu and have not been executed in this Windows workspace.
 
-## Architecture
+## Prerequisites and configuration
 
-```mermaid
-flowchart LR
-  Browser -->|HTTPS / static assets| Proxy[Reverse proxy]
-  Proxy -->|/api| FastAPI
-  FastAPI --> Collector[Background collector]
-  Collector --> Host[psutil, systemd, journal]
-  FastAPI --> SQLite[(SQLite history and audit)]
-```
-
-## Install
-
-Create a dedicated account, install the repository under `/opt/linux-admin-platform`, and configure a durable data directory. Set a strong initial password, exact browser origin, service allowlist and desired thresholds in the root `.env` file. Keep `.env`, database backups, and application secrets out of Git.
+Install Python 3.11+, Node.js supported by the pinned Vite version, Docker Engine with the Compose plugin, PostgreSQL client utilities and a reverse proxy with TLS. Install the repository under `/opt/linux-admin-platform` and protect its environment file:
 
 ```bash
 sudo useradd --system --home /opt/linux-admin-platform --shell /usr/sbin/nologin lap
-sudo install -d -o lap -g lap /var/lib/linux-admin-platform
+sudo install -d -o lap -g lap /opt/linux-admin-platform /var/lib/linux-admin-platform
 cd /opt/linux-admin-platform
+cp .env.example .env
+sudo chown lap:lap .env
+sudo chmod 600 .env
+```
+
+Set unique private `POSTGRES_PASSWORD` and `ADMIN_PASSWORD` values. Set `DATABASE_URL` to `postgresql+psycopg://lap:<URL-encoded-password>@127.0.0.1:5432/linux_admin_platform`; URL-encode reserved characters. Set the exact browser `CORS_ORIGINS`, service allowlist, thresholds, and `PROTECTED_SERVICES`. Keep `.env` out of Git.
+
+Start the database and install the Python application:
+
+```bash
+docker compose up -d postgres
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r backend/requirements.txt
+cd backend
+python -m alembic upgrade head
+python -m alembic current
 ```
 
-Set `DATABASE_PATH=/var/lib/linux-admin-platform/platform.db`. Restrict ownership and mode on the database directory. For service controls, grant the dedicated account only the named systemctl actions required by `ALLOWED_SERVICES`; do not grant a general root shell or unrestricted sudo. Journal visibility may require a deployment-specific group. Confirm that the configured allowlist and `PROTECTED_SERVICES` reflect local policy.
+The API applies pending migrations during startup as an additional safeguard. Start it natively with `python -m app` for a demonstration. For a production service, use the unit example below.
 
-## systemd service example
+## PostgreSQL Compose service
 
-Create `/etc/systemd/system/linux-admin-platform.service` and adapt paths and environment file location:
+`docker-compose.yml` runs PostgreSQL 16 with a persistent named volume, health check, and a loopback-only port binding. The API remains native to the host and connects through `DATABASE_URL`.
+
+```bash
+docker compose ps
+docker compose logs postgres
+```
+
+## Native systemd service example
+
+Create `/etc/systemd/system/linux-admin-platform.service` and adapt paths. Grant only named, allowlisted service operations needed by the deployment; do not give the web process an unrestricted root shell.
 
 ```ini
 [Unit]
 Description=Linux Admin Intelligence Platform API
-After=network-online.target
+After=network-online.target docker.service
 Wants=network-online.target
 
 [Service]
@@ -58,23 +70,24 @@ ReadWritePaths=/var/lib/linux-admin-platform
 WantedBy=multi-user.target
 ```
 
-Then run `sudo systemctl daemon-reload`, `sudo systemctl enable --now linux-admin-platform`, and check `systemctl status linux-admin-platform` and `journalctl -u linux-admin-platform`. Confirm the API health route reports collector success and Linux integration availability.
+Apply and inspect it with `sudo systemctl daemon-reload`, `sudo systemctl enable --now linux-admin-platform`, `systemctl status linux-admin-platform`, and `journalctl -u linux-admin-platform`. Ensure PostgreSQL is ready before starting the API.
 
-## Frontend and proxy
+## Frontend and reverse proxy
 
-Build with `cd frontend && npm ci && npm run build`. Serve `frontend/dist` using a production web server and proxy `/api/` to `127.0.0.1:8000`. Terminate TLS at the trusted proxy, restrict network access, and set `CORS_ORIGINS` to the actual frontend origin. Do not expose the Vite development server publicly.
+Build with `cd frontend && npm ci && npm run build`. Serve `frontend/dist` with the trusted reverse proxy and route `/api/` to the native FastAPI process at `127.0.0.1:8000`. Terminate TLS at the proxy, restrict inbound access, and set `CORS_ORIGINS` to the exact frontend origin. Do not expose Vite's development server publicly.
 
 ## Backups and operations
 
-Use SQLite's online backup API or a stopped-service backup; do not copy a live database file without a consistent snapshot. Test restore procedures. Monitor free disk space, collector freshness, service health, and backup success. `RETENTION_DAYS` prunes collected metric/process/service/log/prediction history; choose the retention period and backup policy together. Service operations remain human-reviewed and are revalidated when executed.
+Use a protected PostgreSQL credential and create consistent backups. For the Compose database, `docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom > platform.dump`. Restore into a separate test database with `pg_restore` and verify application health and important records before relying on backups. Monitor database disk use, host free space, collector freshness and service health. `RETENTION_DAYS` prunes collected metric/process/service/log/prediction history. Service operations remain human-reviewed and are revalidated before execution.
 
 ## Verification checklist
 
 - `GET /api/health` reports collector status `running` and `linux_integration: true`.
-- Metric timestamps advance and contain real host measurements.
-- Service inventory, dependency graph, and journal views show expected access.
-- A non-disruptive allowlisted action follows request, independent approval where policy requires it, execution, state verification, and audit recording.
-- Stop requests for protected services are rejected.
-- Restore a database backup in a separate test environment.
+- Alembic reports the expected current revision and PostgreSQL accepts an authenticated API login.
+- Metric timestamps advance and contain actual host measurements.
+- Service inventory, dependency graph and journal views show the access granted to the native service account.
+- A non-disruptive allowlisted operation follows request, independent approval when policy requires it, execution, state verification and audit recording.
+- Protected service stop requests are rejected.
+- A database backup restores into a separate PostgreSQL database and required history is present.
 
-These checks are instructions for a real target host; they are not represented as evidence collected in the current Windows workspace.
+These host checks and their evidence require Ubuntu, Docker/PostgreSQL, systemd access and a disposable test service; they are not represented as completed in this Windows workspace.

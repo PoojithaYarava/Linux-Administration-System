@@ -6,7 +6,7 @@ Linux administrators need a single view of resource health, service state, logs 
 
 ## Delivered architecture
 
-The React/Vite client calls a FastAPI service. A background collector stores psutil metrics and process snapshots in SQLite; on Linux it also queries systemd and journalctl. Analytics calculate statistical anomalies, a resource trend forecast and evidence-ranked root-cause hypotheses. Alert-linked incidents and separate recommendation records are persisted. Service operation requests use a persistent approval/revalidation state machine with risk/impact reports, and administrator decisions/actions are audited.
+The React/Vite client calls a FastAPI service. A background collector stores psutil metrics and process snapshots in PostgreSQL through SQLAlchemy ORM models and Alembic migrations; on Linux it also queries systemd and journalctl. Analytics calculate statistical anomalies, a resource trend forecast and evidence-ranked root-cause hypotheses. Alert-linked incidents and separate recommendation records are persisted. Service operation requests use a persistent approval/revalidation state machine with risk/impact reports, and administrator decisions/actions are audited.
 
 See [architecture](architecture.md), [system design](system_design.md), [database schema](database_schema.md), and the [API guide](api_documentation.md).
 
@@ -21,13 +21,13 @@ Detailed assumptions and limitations are in [ML methodology](ml_methodology.md) 
 
 ## Verification results
 
-At the current verification checkpoint, the backend suite reported 14 passed with five framework deprecation warnings, and the pinned frontend dependencies produced a successful Vite production build. API/preview health probes returned HTTP 200, and the API reported a running collector on Windows. These checks establish local software behavior only.
+At the current verification checkpoint, the backend suite reported 15 passed with five framework deprecation warnings, and the pinned frontend dependencies produced a successful Vite production build. The PostgreSQL SQLAlchemy schema compiles for 24 tables, and Alembic created the baseline schema on a temporary SQLite database. API/preview health probes returned HTTP 200, and the API reported a running collector on Windows. These checks establish local software behavior only.
 
-No Ubuntu host, systemd test service, representative Linux dataset, PostgreSQL instance, or labeled failure dataset was available. Therefore systemd dependency accuracy, journal visibility, privileged operation execution, real Ubuntu failure recovery and workload-specific ML quality remain unverified. No model accuracy claim or synthetic result is included.
+No Ubuntu host, systemd test service, PostgreSQL server, representative Linux dataset, or labeled failure dataset was available. Alembic schema upgrade was exercised against a temporary SQLite database and SQLAlchemy runtime paths were API-tested with SQLite; PostgreSQL dialect compilation and live connection behavior remain unverified. Therefore systemd dependency accuracy, journal visibility, privileged operation execution, real Ubuntu failure recovery and workload-specific ML quality remain unverified. No model accuracy claim or synthetic result is included.
 
 ## Security and operations
 
-Passwords are PBKDF2-hashed, session tokens are stored only as hashes, roles protect administrative routes, operation targets are allowlisted, protected service stop requests are prohibited, and command execution avoids shell interpolation. Deploy behind HTTPS, use a dedicated unprivileged account, scope OS permissions to named services, configure a strong initial password and back up SQLite consistently.
+Passwords are PBKDF2-hashed, session tokens are stored only as hashes, roles protect administrative routes, operation targets are allowlisted, protected service stop requests are prohibited, and command execution avoids shell interpolation. Deploy behind HTTPS, use a dedicated unprivileged account, scope OS permissions to named services, configure strong initial credentials, and back up PostgreSQL consistently.
 
 ## Reproduction
 
@@ -35,4 +35,4 @@ Follow [Ubuntu deployment](deployment.md), [user manual](user_manual.md), and [t
 
 ## Remaining work
 
-The current deliverable preserves SQLite rather than PostgreSQL/SQLAlchemy/Alembic. It has an inline idempotent bootstrap, not an Alembic migration history. It includes an authenticated live-data evaluation notebook, but no trained serialized model artifact or per-system tenant model. Docker Compose is not included. Ubuntu screenshots and systemd workflow evidence require access to an Ubuntu host; see the traceability checklist for the exact verification boundary.
+The deliverable uses PostgreSQL, SQLAlchemy ORM metadata and an Alembic baseline migration, with an explicit SQLite compatibility path and migration utility. A Docker Compose PostgreSQL service is included. It includes an authenticated live-data evaluation notebook, but no trained serialized model artifact or per-system tenant model. Live PostgreSQL, Ubuntu screenshots and systemd workflow evidence require infrastructure unavailable in this workspace; see the traceability checklist for the exact verification boundary.

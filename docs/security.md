@@ -17,7 +17,7 @@
 2. Set `CORS_ORIGINS` to exact trusted origins. Serve the production client and API through HTTPS; do not expose Vite's development server.
 3. Run the backend as a dedicated unprivileged OS account. Do not run the web process as root. Grant only narrowly scoped systemd operations for named allowlisted services and needed journal visibility.
 4. Protect `.env`, database files and backups with filesystem permissions and encryption appropriate to the host. Do not commit `.env`.
-5. Keep the SQLite file on persistent local storage with consistent backups. Test restoration.
+5. Keep PostgreSQL credentials and access restricted, run consistent `pg_dump` backups, and test restoration.
 6. Review the dependency lockfiles and perform a vulnerability review before production release. No vulnerability scan is claimed by this workspace build.
 
 ## Known limits

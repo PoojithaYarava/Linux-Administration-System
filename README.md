@@ -1,6 +1,6 @@
 # Linux Admin Intelligence Platform
 
-A local web console for Linux host telemetry and controlled administration. The React dashboard talks to a FastAPI service that collects host metrics, process data, systemd inventory, journal entries, alerts, actions, and audit history. SQLite stores application data and login sessions.
+A local web console for Linux host telemetry and controlled administration. The React dashboard talks to a FastAPI service that collects host metrics, process data, systemd inventory, journal entries, alerts, actions, and audit history. PostgreSQL stores application data and login sessions through SQLAlchemy ORM models and Alembic migrations.
 
 ## Capabilities
 
@@ -24,7 +24,13 @@ Use Python 3.11 or newer and Node.js supported by the pinned Vite version. From 
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and replace `ADMIN_PASSWORD` with a long private password. Do not commit `.env`.
+Edit `.env` and replace `POSTGRES_PASSWORD`, the password in `DATABASE_URL`, and `ADMIN_PASSWORD` with long private values before first launch. URL-encode reserved characters in the PostgreSQL URL. Do not commit `.env`.
+
+Start PostgreSQL (Compose runs the database; run the API natively on Ubuntu so it can inspect the host):
+
+```powershell
+docker compose up -d postgres
+```
 
 In one terminal, install and run the API:
 
@@ -33,6 +39,7 @@ py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r backend/requirements.txt
 Set-Location backend
+python -m alembic upgrade head
 python -m app
 ```
 
@@ -61,7 +68,8 @@ Run the frontend in another terminal with `cd frontend && npm ci && npm run dev`
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `DATABASE_PATH` | `backend/data/platform.db` | SQLite database location |
+| `DATABASE_URL` | Required | PostgreSQL SQLAlchemy URL, e.g. `postgresql+psycopg://lap:<password>@127.0.0.1:5432/linux_admin_platform` |
+| `DATABASE_PATH` | unset | Legacy SQLite compatibility mode; use PostgreSQL for new installations |
 | `ADMIN_USERNAME` | `admin` | Initial administrator account, created when the database is empty |
 | `ADMIN_PASSWORD` | Required when initializing an empty database | Initial administrator password; at least 12 characters |
 | `SESSION_TTL_HOURS` | `12` | Login session lifetime |
@@ -82,7 +90,7 @@ The API reads the root `.env` file on startup and respects environment variables
 
 Run the backend on the Ubuntu/Linux host you want to monitor. systemd inventory, unit dependencies, journal access, and service actions require `systemctl`/`journalctl` and the operating-system permissions granted to the backend process. Use a dedicated least-privilege account and grant only the narrowly scoped systemd commands required by the configured allowlist. On Windows or a container without systemd, host telemetry still works but Linux service, dependency and journal features report that the integration is unavailable.
 
-The existing SQLite storage choice is preserved. PostgreSQL and Alembic are not included in this delivery. Set `DATABASE_PATH` to persistent storage and arrange regular, consistent database backups before collecting production history. See the [delivery checklist](docs/REQUIREMENTS_CHECKLIST.md) for implementation evidence and host-dependent limitations.
+PostgreSQL is the primary database, managed by SQLAlchemy models and Alembic migrations. The application retains a compatibility mode for existing SQLite databases; use [`scripts/migrate_sqlite_to_postgres.py`](scripts/migrate_sqlite_to_postgres.py) to copy a legacy installation into a fresh PostgreSQL target. Back up PostgreSQL with `pg_dump` and test restoration before collecting production history. See the [delivery checklist](docs/REQUIREMENTS_CHECKLIST.md) for implementation evidence and host-dependent limitations.
 
 ## Production build
 

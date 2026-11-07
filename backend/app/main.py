@@ -10,7 +10,6 @@ import platform
 import re
 import secrets
 import shutil
-import sqlite3
 import subprocess
 import threading
 import time
@@ -20,12 +19,19 @@ from pathlib import Path
 from typing import Any
 
 import psutil
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from sqlalchemy import inspect, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session as ORMSession
 
+from app.database import database_session, make_engine
 from app.intelligence import detect_anomalies
 from app.forecasting import forecast_resources
+from app.models import Base, User
 from app.root_cause import analyze_root_causes
 from app.safety import action_fingerprint, assess_action, recommendations_from_state
 
@@ -46,9 +52,15 @@ def load_environment(path: Path) -> None:
 
 
 load_environment(BASE_DIR / ".env")
-configured_db_path = Path(os.getenv("DATABASE_PATH", BASE_DIR / "data" / "platform.db"))
-DB_PATH = configured_db_path if configured_db_path.is_absolute() else BASE_DIR / configured_db_path
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL and os.getenv("DATABASE_PATH"):
+    configured_db_path = Path(os.environ["DATABASE_PATH"])
+    configured_db_path = configured_db_path if configured_db_path.is_absolute() else BASE_DIR / configured_db_path
+    configured_db_path.parent.mkdir(parents=True, exist_ok=True)
+    DATABASE_URL = "sqlite:///" + configured_db_path.as_posix()
+if not DATABASE_URL:
+    raise RuntimeError("Set DATABASE_URL to a PostgreSQL connection URL before starting the application.")
+engine = make_engine(DATABASE_URL)
 
 app = FastAPI(title="Linux Admin Intelligence Platform", version="0.1.0")
 app.add_middleware(
@@ -77,21 +89,25 @@ def now() -> str:
 
 @contextmanager
 def db():
-    connection = sqlite3.connect(DB_PATH, timeout=10)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys=ON")
-    connection.execute("PRAGMA busy_timeout=10000")
-    try:
+    with database_session(engine) as connection:
         yield connection
-        connection.commit()
-    except Exception:
-        connection.rollback()
-        raise
-    finally:
-        connection.close()
 
 
 def init_db() -> None:
+    if engine.dialect.name == "postgresql":
+        alembic_config = AlembicConfig(str(BASE_DIR / "backend" / "alembic.ini"))
+        alembic_config.set_main_option("script_location", str(BASE_DIR / "backend" / "alembic"))
+        alembic_config.set_section_option("alembic", "sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
+        alembic_command.upgrade(alembic_config, "head")
+        with ORMSession(engine) as session:
+            if session.scalar(select(User.id).limit(1)) is None:
+                username = os.getenv("ADMIN_USERNAME", "admin")
+                password = os.getenv("ADMIN_PASSWORD", "")
+                if len(password) < 12:
+                    raise RuntimeError("Set ADMIN_PASSWORD to a private password of at least 12 characters before the first database initialization.")
+                session.add(User(username=username, password_hash=hash_password(password), role="administrator", created_at=now()))
+                session.commit()
+        return
     with db() as connection:
         connection.executescript("""
         CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL, created_at TEXT NOT NULL);
@@ -592,9 +608,9 @@ def login(payload: LoginRequest, request: Request) -> dict[str, Any]:
     count, first_failure = login_failures.get(client, (0, time.monotonic()))
     if count >= LOGIN_FAILURE_LIMIT and time.monotonic() - first_failure < LOGIN_WINDOW_SECONDS:
         raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.", headers={"Retry-After": str(max(1, int(LOGIN_WINDOW_SECONDS - (time.monotonic() - first_failure))))})
-    with db() as connection:
-        row = connection.execute("SELECT id,username,password_hash,role FROM users WHERE username=?", (payload.username,)).fetchone()
-    if not row or not verify_password(payload.password, row["password_hash"]):
+    with ORMSession(engine) as session:
+        account = session.scalar(select(User).where(User.username == payload.username))
+    if not account or not verify_password(payload.password, account.password_hash):
         if time.monotonic() - first_failure >= LOGIN_WINDOW_SECONDS:
             login_failures[client] = (1, time.monotonic())
         else:
@@ -602,7 +618,7 @@ def login(payload: LoginRequest, request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     login_failures.pop(client, None)
     token = secrets.token_urlsafe(32)
-    user = {"id": row["id"], "username": row["username"], "role": row["role"]}
+    user = {"id": account.id, "username": account.username, "role": account.role}
     created_at = datetime.now(timezone.utc)
     expires_at = created_at + timedelta(hours=SESSION_TTL_HOURS)
     with db() as connection:
@@ -625,7 +641,7 @@ def create_user(payload: UserCreateRequest, user: dict[str, Any] = Depends(admin
     with db() as connection:
         try:
             cursor = connection.execute("INSERT INTO users(username,password_hash,role,created_at) VALUES (?,?,?,?)", (payload.username, hash_password(payload.password), payload.role, now()))
-        except sqlite3.IntegrityError as error:
+        except IntegrityError as error:
             raise HTTPException(status_code=409, detail="Username already exists") from error
         connection.execute("INSERT INTO audit_logs(user_id,action,target,timestamp,result) VALUES (?,?,?,?,?)", (user["id"], "create_user", payload.username, now(), f"role={payload.role}"))
         row = connection.execute("SELECT id,username,role,created_at FROM users WHERE id=?", (cursor.lastrowid,)).fetchone()
@@ -686,7 +702,7 @@ def metric_history(start: str | None = None, end: str | None = None, limit: int 
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
     with db() as connection:
         if start or end:
-            count = connection.execute(f"SELECT COUNT(*) FROM system_metrics{where}", values).fetchone()[0]
+            count = connection.execute(f"SELECT COUNT(*) AS total FROM system_metrics{where}", values).fetchone()["total"]
             if count > limit and limit > 1:
                 step = max(1, math.ceil((count - 1) / (limit - 1)))
                 rows = connection.execute(
@@ -1101,7 +1117,7 @@ def actions(limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0),
     return [_serialize_action(row) for row in rows]
 
 
-def _serialize_action(row: sqlite3.Row) -> dict[str, Any]:
+def _serialize_action(row: Any) -> dict[str, Any]:
     result = dict(row)
     for raw, target in (("impact_json", "impact"), ("risk_json", "risk")):
         result[target] = json.loads(result.pop(raw) or "{}")

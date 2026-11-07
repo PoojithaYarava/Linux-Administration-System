@@ -5,7 +5,7 @@ The upstream repository originally contained only its license. This document rec
 ## Phase 1 — Foundation and authentication
 
 - React/Vite interface and FastAPI API.
-- SQLite persistence, root environment configuration, health endpoint, password hashing, expiring hashed bearer sessions, logout, password rotation and role-aware access.
+- PostgreSQL persistence through SQLAlchemy ORM models, versioned Alembic migration, and a SQLite compatibility/migration path; root environment configuration, health endpoint, password hashing, expiring hashed bearer sessions, logout, password rotation and role-aware access.
 - Account creation and login throttling.
 
 ## Phase 2 — Continuous host monitoring
@@ -37,8 +37,8 @@ The upstream repository originally contained only its license. This document rec
 
 - Validate systemd inventory, dependency edge direction, journal permissions, service-operation sudo policy and state verification on the target Ubuntu release.
 - Capture real Ubuntu screenshots and run integration tests against disposable systemd units.
-- Select and deploy PostgreSQL/Alembic if required; this implementation intentionally retains the original SQLite store.
+- Run the PostgreSQL container and validate the dialect and data-copy script against a live server; the Docker Desktop engine was unavailable in the current workspace.
 - Run workload-specific model evaluation with representative real history and set operational thresholds/criticality policy.
 - Configure production HTTPS, reverse proxy, backup/restore, monitoring and least-privilege service account.
 
-No production host, workload dataset, PostgreSQL instance, or real service action was available in the development environment, so those items are not marked verified.
+No Ubuntu host, workload dataset, live PostgreSQL instance, or real service action was available in the development environment, so those items are not marked verified.

@@ -6,7 +6,7 @@
 flowchart LR
   Browser[React dashboard] -->|Bearer-authenticated JSON| API[FastAPI]
   API --> Auth[Authentication and policy]
-  API --> Store[(SQLite database)]
+  API --> Store[(PostgreSQL via SQLAlchemy)]
   Collector[Background collector] --> Metrics[psutil host metrics]
   Collector --> Systemd[systemd unit properties]
   Collector --> Journal[journalctl]
@@ -29,7 +29,7 @@ The React client reads real API data and displays explicit empty/error/staleness
 
 - The browser is an untrusted client. All request fields are validated server-side.
 - The API has an OS identity distinct from the browser user. Linux deployments should use a dedicated account and narrowly scoped systemd permissions.
-- The SQLite file contains account hashes and operational history. Its directory requires access control and backups.
+- PostgreSQL contains account hashes and operational history. Protect credentials, network access and consistent backups.
 - systemd and journal data are unavailable on Windows; the health response advertises this rather than synthesizing Linux results.
 
 ## Data flow
@@ -37,7 +37,7 @@ The React client reads real API data and displays explicit empty/error/staleness
 ```mermaid
 flowchart TD
   Host[Ubuntu host] --> Collector[Collector and validation]
-  Collector --> History[(Timestamped SQLite history)]
+  Collector --> History[(Timestamped PostgreSQL history)]
   History --> Features[Validated time series]
   Features --> Anomaly[Statistical / Isolation Forest anomaly detection]
   Features --> Forecast[Resource trend estimate]
@@ -51,4 +51,4 @@ flowchart TD
   Forecast --> Dashboard
 ```
 
-Storage is SQLite in this implementation, preserving the existing repository's selected database. PostgreSQL is not part of the delivered runtime.
+PostgreSQL is the new-installation store. SQLAlchemy mapped models define the relational schema and Alembic versions changes; the legacy SQLite compatibility path remains available for existing installations and unit tests.

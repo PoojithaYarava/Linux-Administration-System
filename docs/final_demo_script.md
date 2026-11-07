@@ -17,7 +17,7 @@ This script distinguishes the runnable local Windows demonstration from Linux-on
 
 ## Ubuntu integration demonstration (requires a separate target host)
 
-1. Deploy according to [Ubuntu deployment](deployment.md), set a dedicated OS account, exact CORS origin, durable SQLite path and narrowly scoped service permissions.
+1. Deploy according to [Ubuntu deployment](deployment.md), set a dedicated OS account, exact CORS origin, PostgreSQL credentials and narrowly scoped service permissions.
 2. Verify `GET /api/health` reports `linux_integration: true`, collector success and increasing observation count.
 3. Show actual service inventory, enablement state, dependency graph and journal entries visible to the service account.
 4. In a disposable test VM only, use a dedicated test unit to produce a controlled failed state. Verify a service-failure alert/incident, journal evidence and dependency context appear. Restore the test unit.

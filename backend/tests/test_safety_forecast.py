@@ -27,3 +27,44 @@ def test_risk_weights_and_protected_service_policy_are_explicit():
     assert result["policy"]["decision"] == "prohibited"
     assert result["unknowns"]
     assert action_fingerprint("restart", "ssh") != action_fingerprint("stop", "ssh")
+
+
+def test_postgres_schema_compiles_and_insert_adapter_binds_parameters():
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.schema import CreateTable
+
+    from app.database import ConnectionAdapter
+    from app.models import Base
+
+    assert len(Base.metadata.tables) == 24
+    ddl = [str(CreateTable(table).compile(dialect=postgresql.dialect())) for table in Base.metadata.sorted_tables]
+    assert all("CREATE TABLE" in statement for statement in ddl)
+
+    class Result:
+        rowcount = 1
+        returns_rows = True
+
+        @staticmethod
+        def scalar_one_or_none():
+            return 27
+
+    class Connection:
+        class Dialect:
+            name = "postgresql"
+
+        dialect = Dialect()
+
+        def execute(self, statement, parameters):
+            self.statement = statement
+            self.parameters = parameters
+            return Result()
+
+    connection = Connection()
+    result = ConnectionAdapter(connection).execute(
+        "INSERT OR IGNORE INTO logs(timestamp,message) VALUES (?,?)",
+        ("2026-01-01T00:00:00+00:00", "safe bound value"),
+    )
+    sql = str(connection.statement.compile(dialect=postgresql.dialect()))
+    assert "ON CONFLICT DO NOTHING RETURNING id" in sql
+    assert connection.parameters == {"p0": "2026-01-01T00:00:00+00:00", "p1": "safe bound value"}
+    assert result.lastrowid == 27

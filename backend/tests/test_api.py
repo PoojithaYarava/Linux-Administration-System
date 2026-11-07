@@ -1,3 +1,4 @@
+import atexit
 import os
 import tempfile
 import time
@@ -5,12 +6,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _test_db_dir = tempfile.TemporaryDirectory(prefix="lap-test-db-")
-os.environ["DATABASE_PATH"] = str(Path(_test_db_dir.name) / "test.db")
+os.environ["DATABASE_URL"] = "sqlite:///" + (Path(_test_db_dir.name) / "test.db").as_posix()
 os.environ["ADMIN_PASSWORD"] = "test-private-password-42"
 from fastapi.testclient import TestClient
 from app.main import app, init_db
 
 init_db()
+atexit.register(lambda: __import__("app.main", fromlist=["engine"]).engine.dispose())
 client = TestClient(app)
 
 
@@ -30,11 +32,13 @@ def test_login_and_system_metrics():
 def test_fresh_database_rejects_missing_or_weak_admin_password(tmp_path, monkeypatch):
     import pytest
     from app import main as main_module
+    from app.database import make_engine
 
-    original_path = main_module.DB_PATH
+    original_engine = main_module.engine
     try:
         for password in (None, "short"):
-            main_module.DB_PATH = tmp_path / ("fresh-" + (password or "missing") + ".db")
+            fresh_path = (tmp_path / ("fresh-" + (password or "missing") + ".db")).as_posix()
+            main_module.engine = make_engine("sqlite:///" + fresh_path)
             if password is None:
                 monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
             else:
@@ -42,7 +46,8 @@ def test_fresh_database_rejects_missing_or_weak_admin_password(tmp_path, monkeyp
             with pytest.raises(RuntimeError, match="at least 12 characters"):
                 main_module.init_db()
     finally:
-        main_module.DB_PATH = original_path
+        main_module.engine.dispose()
+        main_module.engine = original_engine
         monkeypatch.setenv("ADMIN_PASSWORD", "test-private-password-42")
 
 

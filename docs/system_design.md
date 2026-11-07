@@ -123,4 +123,4 @@ erDiagram
   USERS ||--o{ AUDIT_LOGS : performs
 ```
 
-The current database is a single-host SQLite schema with inline idempotent bootstrap/additive columns. It does not implement SQLAlchemy/Alembic migrations or a PostgreSQL dialect.
+The primary database is PostgreSQL, with SQLAlchemy ORM models and an Alembic baseline migration. A SQLite compatibility mode remains for legacy local installations and automated tests. Per-monitored-host tenancy is not implemented.

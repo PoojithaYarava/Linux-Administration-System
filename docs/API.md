@@ -55,6 +55,6 @@ Supported operation requests are fixed start/stop/restart actions for `ALLOWED_S
 
 ## Data and deployment notes
 
-SQLite is the delivered storage backend. `DATABASE_PATH` selects its file, and the service account must be able to write it. The collector runs in a managed background thread, stores timestamps in UTC, and prunes metric/process/service/log/prediction history according to `RETENTION_DAYS`. Back up the database file using a SQLite-consistent backup method.
+PostgreSQL is the primary persistence backend, accessed through SQLAlchemy and migrated with Alembic. Configure `DATABASE_URL` and apply `python -m alembic upgrade head`; the application also applies pending migrations on startup. Existing SQLite data can be retained with `scripts/migrate_sqlite_to_postgres.py`. The collector stores UTC timestamps and prunes metric/process/service/log/prediction history according to `RETENTION_DAYS`. Use PostgreSQL-consistent backups such as `pg_dump` and verify restores.
 
 For a browser client hosted on another origin, set `CORS_ORIGINS` to the exact trusted origin list. Protect the API with HTTPS and a least-privilege OS account. Service allowlist and protected-service settings are deployment policy, not per-request input.
