@@ -11,6 +11,26 @@ This is a system-administrator console. Sign-in is required, and public self-reg
 
 The hosted demo collects telemetry from its Render service container. It does not monitor a personal Windows or Ubuntu computer. Run the backend on the Ubuntu host to demonstrate systemd services and journal logs.
 
+## Screenshots
+
+These screenshots were captured while running the backend on Ubuntu in WSL. They show Linux host data and systemd/journal integration from that local test environment; they are illustrative records of that run and may differ from the hosted demo, which reads telemetry from its own Render container. The username in the dashboard image has been redacted.
+
+<p align="center">
+  <img src="screenshots/dashboard.png" alt="Linux WSL dashboard with host telemetry" width="800">
+</p>
+
+<p align="center">
+  <img src="screenshots/services.png" alt="Linux systemd services inventory" width="800">
+</p>
+
+<p align="center">
+  <img src="screenshots/dependencies.png" alt="Linux systemd service dependency records" width="800">
+</p>
+
+<p align="center">
+  <img src="screenshots/system-logs.png" alt="Linux journal log entries" width="800">
+</p>
+
 ## Capabilities
 
 - Live CPU, memory, disk, network, uptime, and host details, with a rolling telemetry chart.
