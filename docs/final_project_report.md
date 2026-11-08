@@ -8,7 +8,7 @@ Linux administrators need a single view of resource health, service state, logs 
 
 The React/Vite client calls a FastAPI service. A background collector stores psutil metrics and process snapshots in PostgreSQL through SQLAlchemy ORM models and Alembic migrations; on Linux it also queries systemd and journalctl. Analytics calculate statistical anomalies, a resource trend forecast and evidence-ranked root-cause hypotheses. Alert-linked incidents and separate recommendation records are persisted. Service operation requests use a persistent approval/revalidation state machine with risk/impact reports, and administrator decisions/actions are audited.
 
-See [architecture](architecture.md), [system design](system_design.md), [database schema](database_schema.md), and the [API guide](api_documentation.md).
+See [architecture](architecture.md), [system design](system_design.md), [database schema](database_schema.md), and the [API reference](API.md).
 
 ## Methods
 
