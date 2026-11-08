@@ -2,6 +2,14 @@
 
 A local web console for Linux host telemetry and controlled administration. The React dashboard talks to a FastAPI service that collects host metrics, process data, systemd inventory, journal entries, alerts, actions, and audit history. PostgreSQL stores application data and login sessions through SQLAlchemy ORM models and Alembic migrations.
 
+## Live Demo
+
+- **Website:** [Linux Admin Intelligence Platform](https://linux-administration-system.vercel.app)
+- **Backend health:** [API health check](https://linux-admin-api.onrender.com/api/health)
+- **Demo account:** Sign in as `demo`; request the password from the project owner. The password is intentionally not stored in this public repository.
+
+The hosted demo collects telemetry from its Render service container. It does not monitor a personal Windows or Ubuntu computer. Run the backend on the Ubuntu host to demonstrate systemd services and journal logs.
+
 ## Capabilities
 
 - Live CPU, memory, disk, network, uptime, and host details, with a rolling telemetry chart.
