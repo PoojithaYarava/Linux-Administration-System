@@ -37,6 +37,22 @@ def test_provider_postgres_urls_select_psycopg3():
     assert normalize_database_url("postgresql+psycopg://user:pass@db.example/app") == "postgresql+psycopg://user:pass@db.example/app"
 
 
+def test_configured_demo_account_is_operator_not_administrator(monkeypatch):
+    from app import main as main_module
+
+    monkeypatch.setenv("DEMO_USERNAME", "reviewer-demo")
+    monkeypatch.setenv("DEMO_PASSWORD", "reviewer-demo-password-42")
+    main_module.seed_demo_user()
+    login = client.post("/api/auth/login", json={"username": "reviewer-demo", "password": "reviewer-demo-password-42"})
+    assert login.status_code == 200
+    auth = {"Authorization": f"Bearer {login.json()['token']}"}
+    assert login.json()["user"]["role"] == "operator"
+    assert client.get("/api/users", headers=auth).status_code == 403
+    with main_module.db() as connection:
+        connection.execute("DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE username=?)", ("reviewer-demo",))
+        connection.execute("DELETE FROM users WHERE username=?", ("reviewer-demo",))
+
+
 def test_fresh_database_rejects_missing_or_weak_admin_password(tmp_path, monkeypatch):
     import pytest
     from app import main as main_module
