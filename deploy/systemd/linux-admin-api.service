@@ -1,0 +1,23 @@
+[Unit]
+Description=Linux Admin Intelligence Platform API
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=linuxadmin
+Group=linuxadmin
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/linux-admin-platform/backend
+EnvironmentFile=/opt/linux-admin-platform/.env
+ExecStart=/opt/linux-admin-platform/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
