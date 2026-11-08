@@ -14,7 +14,7 @@ A local web console for Linux host telemetry and controlled administration. The 
 - alert acknowledgement and an audit trail for administrative actions.
 - Responsive React interface and a FastAPI health endpoint.
 
-See the [operator manual](docs/user_manual.md) for workflows and the [final demo script](docs/final_demo_script.md) for a guided presentation. The [project report](docs/final_project_report.md) records methods, verification and limitations.
+See the [operator manual](docs/user_manual.md) for workflows and [testing and evaluation](docs/testing_and_evaluation.md) for verification results and limitations.
 
 ## Quick start
 
@@ -90,7 +90,7 @@ The API reads the root `.env` file on startup and respects environment variables
 
 Run the backend on the Ubuntu/Linux host you want to monitor. systemd inventory, unit dependencies, journal access, and service actions require `systemctl`/`journalctl` and the operating-system permissions granted to the backend process. Use a dedicated least-privilege account and grant only the narrowly scoped systemd commands required by the configured allowlist. On Windows or a container without systemd, host telemetry still works but Linux service, dependency and journal features report that the integration is unavailable.
 
-PostgreSQL is the primary database, managed by SQLAlchemy models and Alembic migrations. The application retains a compatibility mode for existing SQLite databases; use [`scripts/migrate_sqlite_to_postgres.py`](scripts/migrate_sqlite_to_postgres.py) to copy a legacy installation into a fresh PostgreSQL target. Back up PostgreSQL with `pg_dump` and test restoration before collecting production history. See the [delivery checklist](docs/REQUIREMENTS_CHECKLIST.md) for implementation evidence and host-dependent limitations.
+PostgreSQL is the primary database, managed by SQLAlchemy models and Alembic migrations. The application retains a compatibility mode for existing SQLite databases; use [`scripts/migrate_sqlite_to_postgres.py`](scripts/migrate_sqlite_to_postgres.py) to copy a legacy installation into a fresh PostgreSQL target. Back up PostgreSQL with `pg_dump` and test restoration before collecting production history. The [database guide](docs/database_schema.md) describes the schema and migration path.
 
 ## Production build
 
@@ -106,7 +106,7 @@ The output is written to `frontend/dist`. For deployment, serve those files from
 
 ## API and project notes
 
-See the [API reference](docs/API.md), [architecture](docs/architecture.md), [system design and diagrams](docs/system_design.md), [database schema](docs/database_schema.md), [ML methodology](docs/ml_methodology.md), [live-data evaluation notebook](ml/evaluation.ipynb), [security model](docs/security.md), and [testing/evaluation](docs/testing_and_evaluation.md). The [Ubuntu deployment guide](docs/deployment.md) and [master prompt checklist](docs/REQUIREMENTS_CHECKLIST.md) state the setup, implemented scope and remaining host-dependent work. FastAPI exposes interactive OpenAPI documentation at `/docs` while the backend is running. The unauthenticated health probe is `GET /api/health`.
+See the [API reference](docs/API.md), [architecture](docs/architecture.md), [system design and diagrams](docs/system_design.md), [database schema](docs/database_schema.md), [ML methodology](docs/ml_methodology.md), [live-data evaluation notebook](ml/evaluation.ipynb), [security model](docs/security.md), and [testing/evaluation](docs/testing_and_evaluation.md). The [Ubuntu deployment guide](docs/deployment.md) covers host setup and operational requirements. FastAPI exposes interactive OpenAPI documentation at `/docs` while the backend runs. The unauthenticated health probe is `GET /api/health`.
 
 ## Troubleshooting
 
