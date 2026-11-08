@@ -112,6 +112,15 @@ Review database migrations and back up PostgreSQL before applying application up
 
 The repository also includes a Render Blueprint at [`../render.yaml`](../render.yaml) for the FastAPI API. The frontend remains a static Vite site on Vercel, and Neon provides PostgreSQL. This layout uses provider-managed HTTPS and keeps database credentials out of the frontend.
 
+```mermaid
+flowchart LR
+    B[Reviewer browser] -->|HTTPS| V[Vercel static React site]
+    V -->|HTTPS API calls| R[Render FastAPI service]
+    R -->|PostgreSQL over TLS| N[(Neon PostgreSQL)]
+    R -->|psutil samples| H[Render service container]
+    U[Personal Ubuntu host] -. no collector connection in this project .-> R
+```
+
 ### Before you start
 
 - Push the project to the GitHub repository you will connect to both providers.
