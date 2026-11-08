@@ -30,13 +30,19 @@ def test_risk_weights_and_protected_service_policy_are_explicit():
 
 
 def test_postgres_schema_compiles_and_insert_adapter_binds_parameters():
+    from sqlalchemy import BigInteger
     from sqlalchemy.dialects import postgresql
     from sqlalchemy.schema import CreateTable
 
     from app.database import ConnectionAdapter
-    from app.models import Base
+    from app.models import Base, ProcessSnapshot, SystemMetric
 
     assert len(Base.metadata.tables) == 24
+    assert all(isinstance(SystemMetric.__table__.c[name].type, BigInteger) for name in (
+        "network_received", "network_sent", "memory_available", "disk_total_bytes",
+        "disk_used_bytes", "disk_read_bytes", "disk_write_bytes",
+    ))
+    assert isinstance(ProcessSnapshot.__table__.c.memory_bytes.type, BigInteger)
     ddl = [str(CreateTable(table).compile(dialect=postgresql.dialect())) for table in Base.metadata.sorted_tables]
     assert all("CREATE TABLE" in statement for statement in ddl)
 

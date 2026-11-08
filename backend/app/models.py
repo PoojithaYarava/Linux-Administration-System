@@ -1,6 +1,6 @@
 """SQLAlchemy ORM schema shared by the API and Alembic migrations."""
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Float, Integer, Text, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Float, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -24,14 +24,14 @@ class SystemMetric(Base):
     cpu_usage: Mapped[float] = mapped_column(Float, nullable=False)
     memory_usage: Mapped[float] = mapped_column(Float, nullable=False)
     disk_usage: Mapped[float] = mapped_column(Float, nullable=False)
-    network_received: Mapped[int] = mapped_column(Integer, nullable=False)
-    network_sent: Mapped[int] = mapped_column(Integer, nullable=False)
+    network_received: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    network_sent: Mapped[int] = mapped_column(BigInteger, nullable=False)
     load_average: Mapped[float] = mapped_column(Float, nullable=False)
-    memory_available: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    disk_total_bytes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    disk_used_bytes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    disk_read_bytes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    disk_write_bytes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    memory_available: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    disk_total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    disk_used_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    disk_read_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    disk_write_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     network_received_rate: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
     network_sent_rate: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
     interface_stats: Mapped[str] = mapped_column(Text, nullable=False, server_default="{}")
@@ -51,7 +51,7 @@ class ProcessSnapshot(Base):
     username: Mapped[str | None] = mapped_column(Text)
     start_time: Mapped[str | None] = mapped_column(Text)
     command: Mapped[str | None] = mapped_column(Text)
-    memory_bytes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    memory_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
 
 
 class Service(Base):
