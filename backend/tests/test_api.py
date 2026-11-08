@@ -29,6 +29,14 @@ def test_login_and_system_metrics():
     assert {"cpu_usage", "memory_usage", "disk_usage"}.issubset(response.json()["latest"])
 
 
+def test_provider_postgres_urls_select_psycopg3():
+    from app.database import normalize_database_url
+
+    assert normalize_database_url("postgresql://user:pass@db.example/app?sslmode=require") == "postgresql+psycopg://user:pass@db.example/app?sslmode=require"
+    assert normalize_database_url("postgres://user:pass@db.example/app") == "postgresql+psycopg://user:pass@db.example/app"
+    assert normalize_database_url("postgresql+psycopg://user:pass@db.example/app") == "postgresql+psycopg://user:pass@db.example/app"
+
+
 def test_fresh_database_rejects_missing_or_weak_admin_password(tmp_path, monkeypatch):
     import pytest
     from app import main as main_module

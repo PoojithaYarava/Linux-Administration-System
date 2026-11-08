@@ -106,6 +106,8 @@ The output is written to `frontend/dist`. For deployment, serve those files from
 
 The repository includes an Ubuntu deployment walkthrough and ready-to-install Nginx and systemd templates in [`deploy/README.md`](deploy/README.md). Run the API directly on the Ubuntu host for systemd and journal integration; Docker Compose is used for PostgreSQL. Keep the API bound to localhost behind Nginx and configure HTTPS before exposing the site publicly.
 
+For a free public demonstration, see the Vercel + Render + Neon steps in [`deploy/README.md`](deploy/README.md). A cloud deployment monitors its own runtime, not your personal Windows or Ubuntu computer; run the API on the Ubuntu host to demonstrate systemd and journal features.
+
 ## API and project notes
 
 For live-data model evaluation, see the [evaluation notebook](ml/evaluation.ipynb). FastAPI exposes interactive API documentation at `/docs` while the backend runs. The unauthenticated health probe is `GET /api/health`.

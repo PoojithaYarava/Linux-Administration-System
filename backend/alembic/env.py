@@ -7,6 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.database import normalize_database_url
 from app.models import Base
 
 config = context.config
@@ -23,7 +24,7 @@ if environment_file.is_file():
             os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    config.set_section_option("alembic", "sqlalchemy.url", database_url.replace("%", "%%"))
+    config.set_section_option("alembic", "sqlalchemy.url", normalize_database_url(database_url).replace("%", "%%"))
 else:
     raise RuntimeError("Set DATABASE_URL before running Alembic migrations.")
 target_metadata = Base.metadata

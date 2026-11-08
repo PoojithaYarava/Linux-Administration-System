@@ -28,7 +28,7 @@ from sqlalchemy import inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as ORMSession
 
-from app.database import database_session, make_engine
+from app.database import database_session, make_engine, normalize_database_url
 from app.intelligence import detect_anomalies
 from app.forecasting import forecast_resources
 from app.models import Base, User
@@ -60,9 +60,18 @@ if not DATABASE_URL and os.getenv("DATABASE_PATH"):
     DATABASE_URL = "sqlite:///" + configured_db_path.as_posix()
 if not DATABASE_URL:
     raise RuntimeError("Set DATABASE_URL to a PostgreSQL connection URL before starting the application.")
+DATABASE_URL = normalize_database_url(DATABASE_URL)
+os.environ["DATABASE_URL"] = DATABASE_URL
 engine = make_engine(DATABASE_URL)
 
-app = FastAPI(title="Linux Admin Intelligence Platform", version="0.1.0")
+API_DOCS_ENABLED = os.getenv("API_DOCS_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
+app = FastAPI(
+    title="Linux Admin Intelligence Platform",
+    version="0.1.0",
+    docs_url="/docs" if API_DOCS_ENABLED else None,
+    redoc_url="/redoc" if API_DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if API_DOCS_ENABLED else None,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if origin.strip()],
@@ -107,6 +116,7 @@ def init_db() -> None:
                     raise RuntimeError("Set ADMIN_PASSWORD to a private password of at least 12 characters before the first database initialization.")
                 session.add(User(username=username, password_hash=hash_password(password), role="administrator", created_at=now()))
                 session.commit()
+        seed_demo_user()
         return
     with db() as connection:
         connection.executescript("""
@@ -173,6 +183,25 @@ def init_db() -> None:
             if len(password) < 12:
                 raise RuntimeError("Set ADMIN_PASSWORD to a private password of at least 12 characters before the first database initialization.")
             connection.execute("INSERT INTO users(username,password_hash,role,created_at) VALUES (?,?,?,?)", (username, hash_password(password), "administrator", now()))
+    seed_demo_user()
+
+
+def seed_demo_user() -> None:
+    """Optionally create a restricted operator account for public demonstrations."""
+    username = os.getenv("DEMO_USERNAME", "").strip()
+    password = os.getenv("DEMO_PASSWORD", "")
+    if not username and not password:
+        return
+    if len(username) < 3 or len(password) < 12:
+        raise RuntimeError("Set both DEMO_USERNAME (at least 3 characters) and DEMO_PASSWORD (at least 12 characters), or leave both unset.")
+    if username == os.getenv("ADMIN_USERNAME", "admin"):
+        raise RuntimeError("DEMO_USERNAME must be different from ADMIN_USERNAME.")
+    with db() as connection:
+        if connection.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone() is None:
+            connection.execute(
+                "INSERT INTO users(username,password_hash,role,created_at) VALUES (?,?,?,?)",
+                (username, hash_password(password), "operator", now()),
+            )
 
 
 def hash_password(password: str) -> str:
@@ -467,8 +496,12 @@ def linux_command(args: list[str], timeout: int = 5) -> str:
         return ""
 
 
+def systemd_available() -> bool:
+    return os.name == "posix" and shutil.which("systemctl") is not None and Path("/run/systemd/system").is_dir()
+
+
 def run_service_operation(name: str, operation: str) -> tuple[int, str]:
-    if os.name != "posix":
+    if not systemd_available():
         return 1, "systemd is unavailable on this host"
     try:
         completed = subprocess.run(["systemctl", operation, f"{name}.service"], check=False, capture_output=True, text=True, timeout=15)
@@ -478,7 +511,7 @@ def run_service_operation(name: str, operation: str) -> tuple[int, str]:
 
 
 def refresh_service_inventory() -> list[dict[str, Any]]:
-    if os.name != "posix" or not shutil.which("systemctl"):
+    if not systemd_available():
         return []
     units = linux_command(["systemctl", "list-units", "--type=service", "--all", "--no-legend", "--no-pager"])
     files = linux_command(["systemctl", "list-unit-files", "--type=service", "--no-legend", "--no-pager"])
@@ -515,7 +548,7 @@ def refresh_service_inventory() -> list[dict[str, Any]]:
 
 
 def refresh_dependencies(services: list[str] | None = None) -> list[dict[str, Any]]:
-    if os.name != "posix" or not shutil.which("systemctl"):
+    if not systemd_available():
         return []
     targets = services or sorted(ALLOWED_SERVICES)
     relationships = ("Requires", "Wants", "BindsTo", "PartOf", "Before", "After", "RequiredBy", "WantedBy", "BoundBy", "ConsistsOf")
@@ -563,7 +596,7 @@ def collector_loop() -> None:
             refresh_dependencies(sorted(ALLOWED_SERVICES))
             collect_metrics()
             cleanup_retention()
-            if not inventory and os.name != "posix":
+            if not inventory and not systemd_available():
                 logger.info("systemd integration unavailable on %s; host metrics are still collected", os.name)
         except Exception as error:
             logger.exception("Metric collection failed")
@@ -599,7 +632,7 @@ def health() -> dict[str, Any]:
     with db() as connection:
         state = connection.execute("SELECT * FROM collector_state WHERE id=1").fetchone()
     collector = dict(state) if state else {"status": "not_initialized", "last_success_at": None, "last_error": None, "observation_count": 0}
-    return {"status": "degraded" if collector.get("status") == "degraded" else "ok", "platform": platform.platform(), "linux_integration": os.name == "posix" and shutil.which("systemctl") is not None, "collector": collector, "collection_interval_seconds": COLLECTOR_INTERVAL_SECONDS, "retention_days": RETENTION_DAYS}
+    return {"status": "degraded" if collector.get("status") == "degraded" else "ok", "platform": platform.platform(), "linux_integration": systemd_available(), "collector": collector, "collection_interval_seconds": COLLECTOR_INTERVAL_SECONDS, "retention_days": RETENTION_DAYS}
 
 
 @app.post("/api/auth/login")
@@ -789,6 +822,8 @@ def services(user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any
 def service_detail(name: str, user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
     if name not in ALLOWED_SERVICES:
         raise HTTPException(status_code=403, detail="Service is not in the controlled allowlist")
+    if not systemd_available():
+        raise HTTPException(status_code=503, detail="systemd is unavailable on this host")
     if not re.fullmatch(r"[A-Za-z0-9_.@:-]+", name):
         raise HTTPException(status_code=400, detail="Invalid service name")
     output = linux_command(["systemctl", "show", f"{name}.service", "--no-pager", "--property=Id,Description,ActiveState,SubState,UnitFileState"])
@@ -803,7 +838,7 @@ def dependency_graph(service: str | None = None, depth: int = Query(2, ge=1, le=
         raise HTTPException(status_code=422, detail="Invalid service name")
     with db() as connection:
         count = connection.execute("SELECT COUNT(*) AS count FROM service_dependencies").fetchone()["count"]
-    if count == 0 and os.name == "posix":
+    if count == 0 and systemd_available():
         refresh_dependencies()
     with db() as connection:
         rows = connection.execute("SELECT * FROM service_dependencies ORDER BY source_service,target_service LIMIT 2000").fetchall()
@@ -964,7 +999,7 @@ def root_causes(limit: int = Query(50, ge=1, le=200), user: dict[str, Any] = Dep
 
 def _action_context(target: str, operation: str) -> tuple[str | None, list[dict[str, Any]], list[dict[str, Any]], dict[str, Any] | None]:
     service_state = None
-    if os.name == "posix" and shutil.which("systemctl"):
+    if systemd_available():
         service_state = linux_command(["systemctl", "is-active", f"{target}.service"]).strip() or "unknown"
     with db() as connection:
         dependencies = [dict(row) for row in connection.execute("SELECT source_service,target_service,relationship,source FROM service_dependencies WHERE source_service=? OR target_service=?", (target, target))]
@@ -1183,7 +1218,7 @@ def execute_action(action_id: int, user: dict[str, Any] = Depends(administrator)
             connection.execute("UPDATE actions SET state='REJECTED',status='rejected',result='Operation fingerprint or allowlist validation failed' WHERE id=?", (action_id,))
             connection.execute("INSERT INTO audit_logs(user_id,action,target,timestamp,result) VALUES (?,?,?,?,?)", (user["id"], "reject_action_revalidation", str(action_id), now(), "fingerprint or allowlist validation failed"))
         raise HTTPException(status_code=409, detail="Approved operation no longer passes policy validation")
-    if os.name != "posix" or not shutil.which("systemctl"):
+    if not systemd_available():
         with db() as connection:
             connection.execute("UPDATE actions SET state='FAILED',status='failed',executed_at=?,result='systemd unavailable on this host' WHERE id=?", (now(), action_id))
             connection.execute("INSERT INTO audit_logs(user_id,action,target,timestamp,result) VALUES (?,?,?,?,?)", (user["id"], "execute_action", target, now(), "failed: systemd unavailable"))

@@ -128,7 +128,17 @@ def database_session(engine: Engine) -> Iterator[ConnectionAdapter]:
 
 
 def make_engine(database_url: str) -> Engine:
+    database_url = normalize_database_url(database_url)
     options: dict[str, Any] = {"pool_pre_ping": True}
     if database_url.startswith("sqlite:"):
         options["connect_args"] = {"check_same_thread": False, "timeout": 10}
     return create_engine(database_url, **options)
+
+
+def normalize_database_url(database_url: str) -> str:
+    """Use the installed Psycopg 3 driver for provider PostgreSQL URLs."""
+    if database_url.startswith("postgres://"):
+        return "postgresql+psycopg://" + database_url.removeprefix("postgres://")
+    if database_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + database_url.removeprefix("postgresql://")
+    return database_url
