@@ -6,7 +6,8 @@ A local web console for Linux host telemetry and controlled administration. The 
 
 - **Website:** [Linux Admin Intelligence Platform](https://linux-administration-system.vercel.app)
 - **Backend health:** [API health check](https://linux-admin-api.onrender.com/api/health)
-- **Demo account:** Sign in as `demo`; request the password from the project owner. The password is intentionally not stored in this public repository.
+
+This is a system-administrator console. Sign-in is required, and public self-registration is disabled; an administrator manages user accounts. Reviewers should use the operator-level `demo` account, not the administrator account. The `DEMO_PASSWORD` is stored in Render and must be shared with reviewers through a private channel. Do not add it to this README, source code, or any public GitHub file: anyone who can view this repository could use it, and deleting it later does not reliably remove it from commit history. Rotate the demo password after the review.
 
 The hosted demo collects telemetry from its Render service container. It does not monitor a personal Windows or Ubuntu computer. Run the backend on the Ubuntu host to demonstrate systemd services and journal logs.
 
