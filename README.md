@@ -1,65 +1,109 @@
 # Linux Admin Intelligence Platform
 
-A local web console for Linux host telemetry and controlled administration. The React dashboard talks to a FastAPI service that collects host metrics, process data, systemd inventory, journal entries, alerts, actions, and audit history. PostgreSQL stores application data and login sessions through SQLAlchemy ORM models and Alembic migrations.
+Linux Admin Intelligence Platform is a web console for administrators who need a clear view of host health and a traceable way to investigate operational issues. The React frontend uses a FastAPI backend. On a Linux host, the backend can collect system metrics, inspect processes and systemd units, read journal entries, and expose safety-checked administrative actions. PostgreSQL stores application data, sessions, and audit records.
 
-## Live Demo
+## Live demo
 
-- **Website:** [Linux Admin Intelligence Platform](https://linux-administration-system.vercel.app)
-- **Backend health:** [API health check](https://linux-admin-api.onrender.com/api/health)
+- **Website:** [linux-administration-system.vercel.app](https://linux-administration-system.vercel.app)
+- **API health:** [linux-admin-api.onrender.com/api/health](https://linux-admin-api.onrender.com/api/health)
 
-This is a system-administrator console. Sign-in is required, and public self-registration is disabled; an administrator manages user accounts. Reviewers should use the operator-level `demo` account, not the administrator account. The `DEMO_PASSWORD` is stored in Render and must be shared with reviewers through a private channel. Do not add it to this README, source code, or any public GitHub file: anyone who can view this repository could use it, and deleting it later does not reliably remove it from commit history. Rotate the demo password after the review.
+Sign-in is required. Public registration is disabled because this is an administrator console. A reviewer account can be created by the project administrator; share its credentials privately and rotate them after the review. Never publish passwords or secret environment values in this repository.
 
-The hosted demo collects telemetry from its Render service container. It does not monitor a personal Windows or Ubuntu computer. Run the backend on the Ubuntu host to demonstrate systemd services and journal logs.
+The hosted demo reports on the host running its backend service. It does not monitor the visitor's computer. To demonstrate systemd services and journal data, run the backend on the Ubuntu/Linux machine being monitored. Windows supports general host telemetry, but Linux-only integrations are unavailable there.
 
 ## Screenshots
 
-These screenshots were captured while running the backend on Ubuntu in WSL. They show Linux host data and systemd/journal integration from that local test environment; they are illustrative records of that run and may differ from the hosted demo, which reads telemetry from its own Render container. The username in the dashboard image has been redacted.
+The gallery uses compact thumbnails in three columns. Select any image to open its full-size capture. The application screenshots show a Windows run; the Ubuntu/WSL group shows the Linux-specific integration. Screenshots show captured example states, and live data may differ.
 
-<p align="center">
-  <img src="screenshots/dashboard.png" alt="Linux WSL dashboard with host telemetry" width="800">
-</p>
+### Application interface — Windows run
 
-<p align="center">
-  <img src="screenshots/services.png" alt="Linux systemd services inventory" width="800">
-</p>
+These screens show the application using Windows host telemetry. systemd services and journal features require a Linux backend and are unavailable in this run.
 
-<p align="center">
-  <img src="screenshots/dependencies.png" alt="Linux systemd service dependency records" width="800">
-</p>
+<table>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/00-login.png"><img src="artifacts/website-screenshots/00-login.png" width="280" alt="Sign-in screen"></a><br><sub>Sign-in</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/01-dashboard.png"><img src="artifacts/website-screenshots/01-dashboard.png" width="280" alt="Dashboard overview"></a><br><sub>Dashboard</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/02-dashboard-host-details.png"><img src="artifacts/website-screenshots/02-dashboard-host-details.png" width="280" alt="Dashboard host details"></a><br><sub>Host details</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/03-processes.png"><img src="artifacts/website-screenshots/03-processes.png" width="280" alt="Process inventory"></a><br><sub>Processes</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/03b-process-detail.png"><img src="artifacts/website-screenshots/03b-process-detail.png" width="280" alt="Process details"></a><br><sub>Process details</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/04-services.png"><img src="artifacts/website-screenshots/04-services.png" width="280" alt="Services view"></a><br><sub>Services</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/05-dependencies.png"><img src="artifacts/website-screenshots/05-dependencies.png" width="280" alt="Service dependency view"></a><br><sub>Dependencies</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/06-forecasts-models.png"><img src="artifacts/website-screenshots/06-forecasts-models.png" width="280" alt="Forecasts and models"></a><br><sub>Forecasts and models</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/07-root-cause.png"><img src="artifacts/website-screenshots/07-root-cause.png" width="280" alt="Root cause analysis"></a><br><sub>Root cause</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/08-recommendations.png"><img src="artifacts/website-screenshots/08-recommendations.png" width="280" alt="Recommendations"></a><br><sub>Recommendations</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/09-incidents.png"><img src="artifacts/website-screenshots/09-incidents.png" width="280" alt="Incident management"></a><br><sub>Incidents</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/10-system-logs.png"><img src="artifacts/website-screenshots/10-system-logs.png" width="280" alt="System logs"></a><br><sub>System logs</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/11-alerts-anomalies.png"><img src="artifacts/website-screenshots/11-alerts-anomalies.png" width="280" alt="Alerts and anomalies"></a><br><sub>Alerts and anomalies</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/12-operations-admin.png"><img src="artifacts/website-screenshots/12-operations-admin.png" width="280" alt="Operations and administration"></a><br><sub>Operations and administration</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/13-users.png"><img src="artifacts/website-screenshots/13-users.png" width="280" alt="User management"></a><br><sub>Users</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/14-audit-history.png"><img src="artifacts/website-screenshots/14-audit-history.png" width="280" alt="Audit history"></a><br><sub>Audit history</sub></td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
 
-<p align="center">
-  <img src="screenshots/system-logs.png" alt="Linux journal log entries" width="800">
-</p>
+### Ubuntu on WSL
 
-## Capabilities
+These captures were taken with the backend running in Ubuntu on Windows Subsystem for Linux. They illustrate the Linux integration available in that environment; WSL may not expose every host service or journal feature in the same way as a dedicated Ubuntu server.
 
-- Live CPU, memory, disk, network, uptime, and host details, with a rolling telemetry chart.
-- Process inventory with CPU, memory, user, command, and state details.
-- systemd service inventory and dependency graph; allowlisted operations are submitted as expiring approval requests and revalidated before execution.
-- journal search and severity filtering.
-- background telemetry collection with history and retention, multivariate anomaly detection, resource threshold forecasts, and evidence-ranked root-cause hypotheses.
-- explainable risk and impact reports, reviewed recommendations, incident tracking, human approvals, role-based accounts, and audit history.
-- persistent, expiring bearer sessions; password changes revoke all sessions.
-- alert acknowledgement and an audit trail for administrative actions.
-- Responsive React interface and a FastAPI health endpoint.
+<table>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/linux-wsl/00-login.png"><img src="artifacts/website-screenshots/linux-wsl/00-login.png" width="280" alt="Sign-in screen during Ubuntu WSL run"></a><br><sub>Sign-in</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/linux-wsl/dashboard.png"><img src="artifacts/website-screenshots/linux-wsl/dashboard.png" width="280" alt="Ubuntu WSL dashboard with redacted username"></a><br><sub>Linux host dashboard</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/linux-wsl/02-services.png"><img src="artifacts/website-screenshots/linux-wsl/02-services.png" width="280" alt="Service inventory during Ubuntu WSL run"></a><br><sub>Services</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="artifacts/website-screenshots/linux-wsl/03-dependencies.png"><img src="artifacts/website-screenshots/linux-wsl/03-dependencies.png" width="280" alt="Dependencies during Ubuntu WSL run"></a><br><sub>Dependencies</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/linux-wsl/03-processes.png"><img src="artifacts/website-screenshots/linux-wsl/03-processes.png" width="280" alt="Processes during Ubuntu WSL run"></a><br><sub>Processes</sub></td>
+    <td align="center"><a href="artifacts/website-screenshots/linux-wsl/04-system-logs.png"><img src="artifacts/website-screenshots/linux-wsl/04-system-logs.png" width="280" alt="System logs during Ubuntu WSL run"></a><br><sub>System logs</sub></td>
+  </tr>
+</table>
 
-## Quick start
+## What it provides
 
-Use Python 3.11 or newer and Node.js supported by the pinned Vite version. From the repository root, create a local environment file and set a private administrator password before the first launch:
+- CPU, memory, disk, network, uptime, and host details with historical resource charts.
+- Process inventory, including process state, owner, CPU, memory, and command details where the host permits access.
+- Linux systemd service inventory, dependency information, and journal search.
+- Background telemetry collection, resource forecasts, anomaly signals, and evidence-ranked root-cause hypotheses.
+- Recommendations, incident tracking, role-based user accounts, session expiry, and administrative audit history.
+- Safety controls for service operations, including allowlists, protected services, expiring approvals, and action revalidation.
+
+## Run locally
+
+### Prerequisites
+
+- Python 3.11 or newer
+- Node.js and npm
+- Docker Desktop or another Docker Compose installation for PostgreSQL
+- Ubuntu/Linux if you need to demonstrate systemd and journal functionality
+
+### 1. Configure the backend
+
+From the project root, create a local environment file:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and replace `POSTGRES_PASSWORD`, the password in `DATABASE_URL`, and `ADMIN_PASSWORD` with long private values before first launch. URL-encode reserved characters in the PostgreSQL URL. Do not commit `.env`.
+Edit `.env`. Set a private `POSTGRES_PASSWORD`, update the password in `DATABASE_URL` to match, and set a private `ADMIN_PASSWORD`. Do not commit `.env` or share the administrator password.
 
-Start PostgreSQL (Compose runs the database; run the API natively on Ubuntu so it can inspect the host):
+Start PostgreSQL:
 
 ```powershell
 docker compose up -d postgres
 ```
 
-In one terminal, install and run the API:
+Create and activate the Python environment, install backend packages, migrate the database, and start the API:
 
 ```powershell
 py -m venv .venv
@@ -70,7 +114,11 @@ python -m alembic upgrade head
 python -m app
 ```
 
-In a second terminal, run the web client:
+The API listens on `http://localhost:8000`. Open [http://localhost:8000/api/health](http://localhost:8000/api/health) to check it; interactive API docs are at [http://localhost:8000/docs](http://localhost:8000/docs).
+
+### 2. Start the frontend
+
+In a second terminal:
 
 ```powershell
 Set-Location frontend
@@ -78,73 +126,74 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Sign in using `ADMIN_USERNAME` and `ADMIN_PASSWORD` from `.env`.
+Open [http://localhost:5173](http://localhost:5173) and sign in with the initial administrator credentials from `.env`. The initial administrator is created only when the database is empty; changing `.env` later does not replace a password already stored in the database.
 
-On Ubuntu, replace the Windows virtual-environment activation command with:
+### Ubuntu/Linux backend
+
+Run the backend on the Ubuntu host whose services and journal you want to inspect. In the Ubuntu shell, from the project root:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r backend/requirements.txt
-cd backend && python -m app
+cd backend
+python -m alembic upgrade head
+python -m app
 ```
 
-Run the frontend in another terminal with `cd frontend && npm ci && npm run dev`.
+Run PostgreSQL and the frontend as described above. The backend process needs appropriate permission to read host metrics, systemd units, and journal entries. Follow the least-privilege guidance in [`deploy/README.md`](deploy/README.md) before enabling administrative actions.
+
+## Deployment
+
+The [`deploy/README.md`](deploy/README.md) guide covers the Ubuntu deployment files, Nginx, systemd, and the public Vercel + Render + Neon setup. Public cloud deployments monitor the backend container itself. To monitor a particular Linux host, deploy the backend on that host and configure HTTPS and network access carefully.
 
 ## Configuration
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | Required | PostgreSQL SQLAlchemy URL, e.g. `postgresql+psycopg://lap:<password>@127.0.0.1:5432/linux_admin_platform` |
-| `DATABASE_PATH` | unset | Legacy SQLite compatibility mode; use PostgreSQL for new installations |
-| `ADMIN_USERNAME` | `admin` | Initial administrator account, created when the database is empty |
-| `ADMIN_PASSWORD` | Required when initializing an empty database | Initial administrator password; at least 12 characters |
-| `SESSION_TTL_HOURS` | `12` | Login session lifetime |
-| `ALLOWED_SERVICES` | `ssh,cron,systemd-journald` | Services the admin API may operate |
-| `CPU_ALERT_THRESHOLD` | `85` | CPU alert threshold percent |
-| `MEMORY_ALERT_THRESHOLD` | `85` | Memory alert threshold percent |
-| `DISK_ALERT_THRESHOLD` | `90` | Disk alert threshold percent |
-| `COLLECTOR_INTERVAL_SECONDS` | `15` | Background sampling interval (minimum 5 seconds) |
-| `RETENTION_DAYS` | `30` | History retention period |
-| `COLLECTOR_ENABLED` | `true` | Enable background host collection |
-| `PROTECTED_SERVICES` | `ssh,systemd-journald` | Services whose stop operation is prohibited |
-| `SERVICE_CRITICALITY` | `ssh:critical,cron:medium,systemd-journald:high` | Comma-separated service risk classifications |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed browser origins |
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string; required for the standard setup |
+| `DATABASE_PATH` | Optional legacy SQLite mode for an existing installation |
+| `ADMIN_USERNAME` | Username for the initial administrator account |
+| `ADMIN_PASSWORD` | Private password used only when initializing an empty database |
+| `SESSION_TTL_HOURS` | Login session lifetime |
+| `CORS_ORIGINS` | Comma-separated allowed browser origins |
+| `COLLECTOR_ENABLED` | Enables or disables background telemetry collection |
+| `COLLECTOR_INTERVAL_SECONDS` | Sampling interval for background collection |
+| `RETENTION_DAYS` | Telemetry history retention period |
+| `ALLOWED_SERVICES` | Allowlist of services eligible for administrative actions |
+| `PROTECTED_SERVICES` | Services that cannot be stopped through the application |
+| `CPU_ALERT_THRESHOLD` | CPU alert threshold percentage |
+| `MEMORY_ALERT_THRESHOLD` | Memory alert threshold percentage |
+| `DISK_ALERT_THRESHOLD` | Disk alert threshold percentage |
 
-The API reads the root `.env` file on startup and respects environment variables already supplied by the process. The administrator account is created only on an empty database; changing the environment password later does not reset an existing account. Use Administration → Change admin password to rotate it.
+Additional settings and safe defaults are documented in [`.env.example`](.env.example). The backend reads that root configuration file at startup and respects environment variables supplied by the host.
 
-## Linux host integration
+## Project structure
 
-Run the backend on the Ubuntu/Linux host you want to monitor. systemd inventory, unit dependencies, journal access, and service actions require `systemctl`/`journalctl` and the operating-system permissions granted to the backend process. Use a dedicated least-privilege account and grant only the narrowly scoped systemd commands required by the configured allowlist. On Windows or a container without systemd, host telemetry still works but Linux service, dependency and journal features report that the integration is unavailable.
-
-PostgreSQL is the primary database, managed by SQLAlchemy models and Alembic migrations. The application retains a compatibility mode for existing SQLite databases; use [`scripts/migrate_sqlite_to_postgres.py`](scripts/migrate_sqlite_to_postgres.py) to copy a legacy installation into a fresh PostgreSQL target. Back up PostgreSQL with `pg_dump` and test restoration before collecting production history.
-
-## Production build
-
-Build the static frontend with:
-
-```bash
-cd frontend
-npm ci
-npm run build
+```text
+backend/       FastAPI application, database migrations, and API tests
+frontend/      React application and Vite configuration
+deploy/        Ubuntu, Nginx, and systemd deployment guidance/templates
+ml/            Model evaluation notebook and notes
+scripts/       Database migration and utility scripts
+artifacts/     Screenshot gallery assets grouped by environment
 ```
 
-The output is written to `frontend/dist`. For deployment, serve those files from a web server that proxies `/api` to the FastAPI process, set a strong initial admin password, restrict `CORS_ORIGINS`, and protect the API behind HTTPS and an appropriate network boundary. The Vite development server is for local use only.
+## Security notes
 
-## Deploy to Ubuntu
-
-The repository includes an Ubuntu deployment walkthrough and ready-to-install Nginx and systemd templates in [`deploy/README.md`](deploy/README.md). Run the API directly on the Ubuntu host for systemd and journal integration; Docker Compose is used for PostgreSQL. Keep the API bound to localhost behind Nginx and configure HTTPS before exposing the site publicly.
-
-For a free public demonstration, see the Vercel + Render + Neon steps in [`deploy/README.md`](deploy/README.md). A cloud deployment monitors its own runtime, not your personal Windows or Ubuntu computer; run the API on the Ubuntu host to demonstrate systemd and journal features.
-
-## API and project notes
-
-For live-data model evaluation, see the [evaluation notebook](ml/evaluation.ipynb). FastAPI exposes interactive API documentation at `/docs` while the backend runs. The unauthenticated health probe is `GET /api/health`.
+- Keep `.env`, database credentials, API tokens, and account passwords out of Git.
+- Do not publish the administrator password. Provide a limited reviewer account privately and rotate its password after review.
+- Restrict the API to trusted clients, use HTTPS, set exact `CORS_ORIGINS`, and apply least-privilege host permissions.
+- Review the allowlisted services and protected-service settings before enabling administrative actions.
 
 ## Troubleshooting
 
-- **The dashboard says it cannot reach the API:** start the backend on port 8000 and confirm `http://localhost:8000/api/health` returns `status: ok`.
-- **The browser shows 502:** Vite is running but cannot connect to the API. Start or restart the backend; the web app clears an invalid saved session and returns to sign-in after the backend recovers.
-- **Login fails after changing `.env`:** `.env` only initializes an empty database. Use the password already saved in the database or reset it through the supported account recovery procedure for your deployment.
-- **Services or logs are unavailable:** run the backend on Linux with systemd and journal permissions. This is expected on Windows.
-- **Port already in use:** stop the process using 5173 or 8000, or change the corresponding Vite/API configuration.
+- **Frontend cannot reach the API:** check that the API is running on port `8000` and that `/api/health` responds.
+- **A 502 appears in the frontend:** the frontend proxy cannot reach the backend. Start or restart the API and check its terminal output.
+- **Sign-in fails after changing `.env`:** the configured password initializes an empty database only. Use the password stored for the existing account or follow the deployment's account recovery procedure.
+- **Services or journal entries are unavailable:** run the backend on Linux with systemd/journal access. This is expected on Windows and on cloud containers that do not expose the host's systemd journal.
+- **A port is already in use:** stop the process using port `5173` or `8000`, or update the corresponding local configuration.
+
+## License
+
+See [LICENSE](LICENSE).
