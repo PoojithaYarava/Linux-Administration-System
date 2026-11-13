@@ -991,7 +991,10 @@ def root_causes(limit: int = Query(50, ge=1, le=200), user: dict[str, Any] = Dep
             evidence_json = json.dumps(item["evidence"])
             incident_ids = item.get("related_incidents") or [None]
             for incident_id in incident_ids:
-                exists = connection.execute("SELECT 1 FROM root_cause_findings WHERE incident_id IS ? AND component=? AND hypothesis=? AND evidence_json=? LIMIT 1", (incident_id, item["component"], item["hypothesis"], evidence_json)).fetchone()
+                exists = connection.execute(
+                    "SELECT 1 FROM root_cause_findings WHERE (incident_id=? OR (incident_id IS NULL AND ? IS NULL)) AND component=? AND hypothesis=? AND evidence_json=? LIMIT 1",
+                    (incident_id, incident_id, item["component"], item["hypothesis"], evidence_json),
+                ).fetchone()
                 if not exists:
                     connection.execute("INSERT INTO root_cause_findings(incident_id,component,hypothesis,confidence,confidence_definition,evidence_json,alternatives_json,diagnostics_json,created_at) VALUES (?,?,?,?,?,?,?,?,?)", (incident_id, item["component"], item["hypothesis"], item["confidence"], item["confidence_definition"], evidence_json, json.dumps(item["alternatives"]), json.dumps(item["diagnostics"]), created))
     return findings[:limit]
