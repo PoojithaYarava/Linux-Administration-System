@@ -991,10 +991,16 @@ def root_causes(limit: int = Query(50, ge=1, le=200), user: dict[str, Any] = Dep
             evidence_json = json.dumps(item["evidence"])
             incident_ids = item.get("related_incidents") or [None]
             for incident_id in incident_ids:
-                exists = connection.execute(
-                    "SELECT 1 FROM root_cause_findings WHERE (incident_id=? OR (incident_id IS NULL AND ? IS NULL)) AND component=? AND hypothesis=? AND evidence_json=? LIMIT 1",
-                    (incident_id, incident_id, item["component"], item["hypothesis"], evidence_json),
-                ).fetchone()
+                if incident_id is None:
+                    exists = connection.execute(
+                        "SELECT 1 FROM root_cause_findings WHERE incident_id IS NULL AND component=? AND hypothesis=? AND evidence_json=? LIMIT 1",
+                        (item["component"], item["hypothesis"], evidence_json),
+                    ).fetchone()
+                else:
+                    exists = connection.execute(
+                        "SELECT 1 FROM root_cause_findings WHERE incident_id=? AND component=? AND hypothesis=? AND evidence_json=? LIMIT 1",
+                        (incident_id, item["component"], item["hypothesis"], evidence_json),
+                    ).fetchone()
                 if not exists:
                     connection.execute("INSERT INTO root_cause_findings(incident_id,component,hypothesis,confidence,confidence_definition,evidence_json,alternatives_json,diagnostics_json,created_at) VALUES (?,?,?,?,?,?,?,?,?)", (incident_id, item["component"], item["hypothesis"], item["confidence"], item["confidence_definition"], evidence_json, json.dumps(item["alternatives"]), json.dumps(item["diagnostics"]), created))
     return findings[:limit]
@@ -1357,9 +1363,3 @@ def update_config(payload: ConfigUpdateRequest, user: dict[str, Any] = Depends(a
         for key, value in values.items():
             connection.execute("INSERT INTO app_config(key,value_json,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at,updated_by=excluded.updated_by", (key, json.dumps(value), updated_at, user["id"]))
         connection.execute("INSERT INTO audit_logs(user_id,action,target,timestamp,result) VALUES (?,?,?,?,?)", (user["id"], "update_alert_thresholds", "app_config", updated_at, json.dumps(values)))
-    return get_config(user)
-
-
-@app.get("/api/forecasts")
-def live_forecasts(horizon_hours: float = Query(1, gt=0, le=24), user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any]]:
-    return forecast_resources(fetch_metric_history(500), horizon_hours)
