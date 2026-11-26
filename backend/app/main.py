@@ -813,8 +813,16 @@ def services(user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any
     result = refresh_service_inventory()
     with db() as connection:
         rows = connection.execute("SELECT * FROM services WHERE checked_at=(SELECT MAX(checked_at) FROM services) ORDER BY service_name").fetchall()
-    if rows:
+    if rows and systemd_available():
         result = [{"name": row["service_name"], "load": row["load"], "active": row["active"], "status": row["status"], "description": row["description"], "enabled": bool(row["enabled"]), "unit_file_state": row["unit_file_state"], "checked_at": row["checked_at"], "allowed": row["service_name"] in ALLOWED_SERVICES} for row in rows]
+    elif not systemd_available():
+        # Illustrative examples for hosts without systemd; these are never persisted.
+        result = [
+            {"name": "nginx", "load": "loaded", "active": "active", "status": "running", "description": "Example web server unit (simulated)", "enabled": False, "unit_file_state": "example", "checked_at": now(), "allowed": False, "is_mock": True},
+            {"name": "postgresql", "load": "loaded", "active": "active", "status": "running", "description": "Example database unit (simulated)", "enabled": False, "unit_file_state": "example", "checked_at": now(), "allowed": False, "is_mock": True},
+            {"name": "ssh", "load": "loaded", "active": "active", "status": "running", "description": "Example remote access unit (simulated)", "enabled": False, "unit_file_state": "example", "checked_at": now(), "allowed": False, "is_mock": True},
+            {"name": "cron", "load": "loaded", "active": "active", "status": "running", "description": "Example scheduler unit (simulated)", "enabled": False, "unit_file_state": "example", "checked_at": now(), "allowed": False, "is_mock": True},
+        ]
     return result
 
 
@@ -843,6 +851,13 @@ def dependency_graph(service: str | None = None, depth: int = Query(2, ge=1, le=
     with db() as connection:
         rows = connection.execute("SELECT * FROM service_dependencies ORDER BY source_service,target_service LIMIT 2000").fetchall()
     edges = [dict(row) for row in rows]
+    simulated = not edges and not systemd_available()
+    if simulated:
+        # Examples are illustrative only, not observed service relationships.
+        edges = [
+            {"source_service": "nginx", "target_service": "postgresql", "relationship": "After (example)", "source": "Illustrative sample", "observed_at": None},
+            {"source_service": "cron", "target_service": "systemd-journald", "relationship": "Wants (example)", "source": "Illustrative sample", "observed_at": None},
+        ]
     if service:
         selected, frontier = set(), {service.removesuffix(".service")}
         for _ in range(depth):
@@ -854,7 +869,8 @@ def dependency_graph(service: str | None = None, depth: int = Query(2, ge=1, le=
             frontier = next_frontier
         edges = [edge for edge in edges if (edge["source_service"], edge["target_service"], edge["relationship"]) in selected]
     nodes = sorted({edge["source_service"] for edge in edges} | {edge["target_service"] for edge in edges})
-    return {"nodes": nodes, "edges": edges, "source": "systemctl show", "coverage": "available" if edges else "unknown_or_unavailable", "note": "Requires/Wants and ordering relationships are preserved as separate edge types; an ordering edge does not prove functional dependency."}
+    note = "Sample relationships are illustrative, not host observations. Requires/Wants and ordering relationships are preserved as separate edge types; an ordering edge does not prove functional dependency." if simulated else "Requires/Wants and ordering relationships are preserved as separate edge types; an ordering edge does not prove functional dependency."
+    return {"nodes": nodes, "edges": edges, "source": "illustrative sample" if simulated else "systemctl show", "coverage": "simulated" if simulated else "available" if edges else "unknown_or_unavailable", "note": note}
 
 
 @app.get("/api/logs")
@@ -881,8 +897,18 @@ def logs(limit: int = Query(100, ge=1, le=500), severity: str | None = None, ser
                 result.append(row)
         except json.JSONDecodeError:
             continue
+    if not raw.strip() and not systemd_available():
+        timestamp = datetime.now(timezone.utc)
+        result = [
+            {"timestamp": (timestamp - timedelta(minutes=8)).isoformat(), "source": "nginx (example)", "unit": "nginx.service", "severity": "info", "message": "Illustrative sample: web worker started successfully.", "journal_cursor": None, "is_mock": True},
+            {"timestamp": (timestamp - timedelta(minutes=5)).isoformat(), "source": "postgresql (example)", "unit": "postgresql.service", "severity": "warning", "message": "Illustrative sample: database connection pool usage reached 80%.", "journal_cursor": None, "is_mock": True},
+            {"timestamp": (timestamp - timedelta(minutes=2)).isoformat(), "source": "systemd (example)", "unit": "docker.service", "severity": "info", "message": "Illustrative sample: container service initialized.", "journal_cursor": None, "is_mock": True},
+        ]
+        result = [item for item in result if (not severity or item["severity"] == severity) and (not service or service.removesuffix(".service") in (item["unit"] or "")) and (not search or search.lower() in (item["message"] + item["source"]).lower())]
     with db() as connection:
         for item in result:
+            if item.get("is_mock"):
+                continue
             connection.execute("INSERT OR IGNORE INTO logs(timestamp,source,severity,message,unit,journal_cursor) VALUES (?,?,?,?,?,?)", (item["timestamp"], item["source"], item["severity"], item["message"], item["unit"], item["journal_cursor"]))
     return result
 
@@ -1363,3 +1389,22 @@ def update_config(payload: ConfigUpdateRequest, user: dict[str, Any] = Depends(a
         for key, value in values.items():
             connection.execute("INSERT INTO app_config(key,value_json,updated_at,updated_by) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at,updated_by=excluded.updated_by", (key, json.dumps(value), updated_at, user["id"]))
         connection.execute("INSERT INTO audit_logs(user_id,action,target,timestamp,result) VALUES (?,?,?,?,?)", (user["id"], "update_alert_thresholds", "app_config", updated_at, json.dumps(values)))
+
+
+
+@app.get("/api/forecasts")
+def live_forecasts(horizon_hours: float = Query(1, gt=0, le=24), user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any]]:
+    history = fetch_metric_history(500)
+    if len(history) < 12:
+        examples = (("cpu_usage", "CPU utilization", 17.2), ("memory_usage", "Memory utilization", 49.8), ("disk_usage", "Disk utilization", 36.4))
+        forecast_at = (datetime.now(timezone.utc) + timedelta(hours=horizon_hours)).isoformat()
+        return [{
+            "metric": metric, "label": label, "status": "simulated", "method": "illustrative_sample",
+            "model_version": "sample-data", "observed_at": None, "forecast_at": forecast_at,
+            "horizon_hours": horizon_hours, "observed_value": None, "predicted_value": value,
+            "threshold": 90.0, "estimated_hours_to_threshold": None,
+            "walk_forward_mae": None, "baseline_mae": None, "evaluation_count": 0,
+            "sample_count": 0, "confidence_score": None,
+            "explanation": "Illustrative sample value only; insufficient real observations for a forecast.",
+        } for metric, label, value in examples]
+    return forecast_resources(history, horizon_hours)
